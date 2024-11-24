@@ -22,11 +22,6 @@ dist
 tsconfig.tsbuildinfo
 /.eslintrc.json
 !.jsii
-cdk.out
-cdk.context.json
-yarn-error.log
-coverage
-!src/**
 /.gitattributes
 /.projenrc.ts
 /projenrc

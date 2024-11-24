@@ -19,6 +19,7 @@ pids
 *.seed
 *.pid.lock
 lib-cov
+coverage
 *.lcov
 .nyc_output
 build/Release
@@ -48,9 +49,4 @@ junit.xml
 .jsii
 tsconfig.json
 !/API.md
-cdk.out
-cdk.context.json
-yarn-error.log
-coverage
-!src/**
 !/.projenrc.ts

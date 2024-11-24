@@ -8,7 +8,6 @@ const project = new awscdk.AwsCdkConstructLibrary({
   cdkVersion: '2.166.0',
   defaultReleaseBranch: 'main',
   jsiiVersion: '~5.5.0',
-  rootdir: 'src',
   packageManager: NodePackageManager.YARN_CLASSIC,
   name: 'token-injectable-docker-builder',
   projenrcTs: true,
@@ -47,11 +46,5 @@ const project = new awscdk.AwsCdkConstructLibrary({
     module: 'token_injectable_docker_builder',
   },
 });
-
-project.gitignore.exclude('cdk.out', 'cdk.context.json', 'yarn-error.log', 'coverage');
-project.npmignore!.exclude('cdk.out', 'cdk.context.json', 'yarn-error.log', 'coverage');
-
-project.gitignore.include('src/**');
-project.npmignore!.include('src/**');
 
 project.synth();
