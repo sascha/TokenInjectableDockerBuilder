@@ -40,7 +40,7 @@ const project = new awscdk.AwsCdkConstructLibrary({
     'infrastructure-as-code',
     'awscdk',
   ],
-  license: 'MIT'
+  license: 'MIT',
 });
 
 project.synth();
