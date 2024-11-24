@@ -1,6 +1,6 @@
 # TokenInjectableDockerBuilder
 
-The `TokenInjectableDockerBuilder` is a flexible AWS CDK construct that enabled the usage of AWS CDK tokens in the building, pushing, and deployment of Docker images to Amazon Elastic Container Registry (ECR). It leverages AWS CodeBuild and Lambda custom resources. 
+The `TokenInjectableDockerBuilder` is a flexible AWS CDK construct that enables the usage of AWS CDK tokens in the building, pushing, and deployment of Docker images to Amazon Elastic Container Registry (ECR). It leverages AWS CodeBuild and Lambda custom resources. 
 
 ## Why?
 
