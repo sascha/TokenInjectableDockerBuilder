@@ -1,4 +1,5 @@
 import { awscdk } from 'projen';
+import { NodePackageManager } from 'projen/lib/javascript';
 
 const project = new awscdk.AwsCdkConstructLibrary({
   author: 'AlexTech314',
@@ -7,6 +8,8 @@ const project = new awscdk.AwsCdkConstructLibrary({
   cdkVersion: '2.166.0',
   defaultReleaseBranch: 'main',
   jsiiVersion: '~5.5.0',
+  rootdir: 'src',
+  packageManager: NodePackageManager.YARN_CLASSIC,
   name: 'token-injectable-docker-builder',
   projenrcTs: true,
   repositoryUrl: 'https://github.com/AlexTech314/TokenInjectableDockerBuilder.git',
