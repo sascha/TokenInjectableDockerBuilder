@@ -1,6 +1,6 @@
 {
-  "name": "@alextech314/docker-image-asset",
-  "version": "0.1.0",
+  "name": "token-injectable-docker-builder",
+  "version": "0.1.1",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "scripts": {
@@ -21,11 +21,5 @@
   "peerDependencies": {
     "aws-cdk-lib": "2.166.0",
     "constructs": "^10.0.0"
-  },
-  "files": [
-    "lib/",
-    "src/",
-    "README.md",
-    "package.json" 
-  ]
+  }
 }
