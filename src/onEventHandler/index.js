@@ -1,8 +1,10 @@
-const AWS = require('aws-sdk');
+const { CodeBuildClient, StartBuildCommand } = require('@aws-sdk/client-codebuild');
 
 exports.handler = async (event, context) => {
     console.log('Event:', JSON.stringify(event, null, 2));
-    const codebuild = new AWS.CodeBuild();
+
+    // Initialize the AWS SDK v3 CodeBuild client
+    const codebuildClient = new CodeBuildClient({ region: process.env.AWS_REGION });
 
     // Set the PhysicalResourceId
     let physicalResourceId = event.PhysicalResourceId || event.LogicalResourceId;
@@ -13,7 +15,8 @@ exports.handler = async (event, context) => {
         };
 
         try {
-            const build = await codebuild.startBuild(params).promise();
+            const command = new StartBuildCommand(params); // Create the command
+            const build = await codebuildClient.send(command); // Send the command
             console.log('Started build:', JSON.stringify(build, null, 2));
         } catch (error) {
             console.error('Error starting build:', error);
@@ -31,6 +34,6 @@ exports.handler = async (event, context) => {
 
     return {
         PhysicalResourceId: physicalResourceId,
-        Data: {}
+        Data: {},
     };
 };

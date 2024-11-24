@@ -1,9 +1,12 @@
-const AWS = require('aws-sdk');
+const { CodeBuildClient, ListBuildsForProjectCommand, BatchGetBuildsCommand } = require('@aws-sdk/client-codebuild');
+const { CloudWatchLogsClient, GetLogEventsCommand } = require('@aws-sdk/client-cloudwatch-logs');
 
 exports.handler = async (event, context) => {
     console.log('isCompleteHandler Event:', JSON.stringify(event, null, 2));
-    const codebuild = new AWS.CodeBuild();
-    const cloudwatchlogs = new AWS.CloudWatchLogs();
+
+    // Initialize AWS SDK v3 clients
+    const codebuildClient = new CodeBuildClient({ region: process.env.AWS_REGION });
+    const cloudwatchlogsClient = new CloudWatchLogsClient({ region: process.env.AWS_REGION });
 
     try {
         const projectName = event.ResourceProperties.ProjectName;
@@ -15,13 +18,15 @@ exports.handler = async (event, context) => {
         console.log(`Checking status for CodeBuild project: ${projectName}`);
 
         // Retrieve the latest build for the given project
-        const listBuildsResp = await codebuild.listBuildsForProject({
+        const listBuildsCommand = new ListBuildsForProjectCommand({
             projectName: projectName,
             sortOrder: 'DESCENDING',
-            maxResults: 1
-        }).promise();
+            maxResults: 1,
+        });
 
+        const listBuildsResp = await codebuildClient.send(listBuildsCommand);
         const buildIds = listBuildsResp.ids;
+
         if (!buildIds || buildIds.length === 0) {
             throw new Error(`No builds found for project: ${projectName}`);
         }
@@ -30,7 +35,11 @@ exports.handler = async (event, context) => {
         console.log(`Latest Build ID: ${buildId}`);
 
         // Get build details
-        const buildDetailsResp = await codebuild.batchGetBuilds({ ids: [buildId] }).promise();
+        const batchGetBuildsCommand = new BatchGetBuildsCommand({
+            ids: [buildId],
+        });
+
+        const buildDetailsResp = await codebuildClient.send(batchGetBuildsCommand);
         const build = buildDetailsResp.builds[0];
 
         if (!build) {
@@ -53,17 +62,17 @@ exports.handler = async (event, context) => {
             const logsInfo = build.logs;
             if (logsInfo && logsInfo.groupName && logsInfo.streamName) {
                 console.log(`Retrieving logs from CloudWatch Logs Group: ${logsInfo.groupName}, Stream: ${logsInfo.streamName}`);
-                
-                // Fetch the last 5 log events
-                const logEventsResp = await cloudwatchlogs.getLogEvents({
+
+                const getLogEventsCommand = new GetLogEventsCommand({
                     logGroupName: logsInfo.groupName,
                     logStreamName: logsInfo.streamName,
                     startFromHead: false, // Start from the end to get latest logs
-                    limit: 5
-                }).promise();
+                    limit: 5,
+                });
 
+                const logEventsResp = await cloudwatchlogsClient.send(getLogEventsCommand);
                 const logEvents = logEventsResp.events;
-                const lastFiveMessages = logEvents.map(event => event.message).reverse().join('\n');
+                const lastFiveMessages = logEvents.map((event) => event.message).reverse().join('\n');
 
                 const errorMessage = `Build failed with status: ${buildStatus}\nLast 5 build logs:\n${lastFiveMessages}`;
                 console.error(errorMessage);

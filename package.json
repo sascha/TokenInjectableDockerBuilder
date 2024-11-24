@@ -21,5 +21,11 @@
   "peerDependencies": {
     "aws-cdk-lib": "2.166.0",
     "constructs": "^10.0.0"
-  }
+  },
+  "files": [
+    "lib/",
+    "src/",
+    "README.md",
+    "package.json" 
+  ]
 }
