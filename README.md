@@ -1,7 +1,3 @@
-Here are detailed usage instructions for the `TokenInjectableDockerBuilder` class in markdown format:
-
----
-
 # TokenInjectableDockerBuilder
 
 The `TokenInjectableDockerBuilder` is a powerful AWS CDK construct that automates the building, pushing, and deployment of Docker images to Amazon Elastic Container Registry (ECR) using AWS CodeBuild and Lambda custom resources. This construct simplifies workflows by enabling token-based Docker image customization.
@@ -154,7 +150,3 @@ Ensure you have the following:
 1. **Build Errors**: Check the AWS CodeBuild logs in CloudWatch.
 2. **Lambda Function Errors**: Check the `onEvent` and `isComplete` Lambda logs in CloudWatch.
 3. **Permissions**: Ensure the IAM role for CodeBuild has the required permissions to interact with ECR and CloudWatch.
-
----
-
-This guide provides a comprehensive overview of the `TokenInjectableDockerBuilder` construct. Let me know if you need any further clarification or assistance!
