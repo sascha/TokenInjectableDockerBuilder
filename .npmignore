@@ -1,6 +1,22 @@
-*.ts
-!*.d.ts
+# Ignore node_modules, as they are installed via npm install
+node_modules/
 
-# CDK asset staging directory
-.cdk.staging
-cdk.out
+# Ignore build scripts and test files
+test/
+
+# Ignore Jest config and test files
+jest.config.js
+*.test.js
+*.test.d.ts
+*.test.ts
+
+# Ignore lock files (not required for library publishing)
+package-lock.json
+yarn.lock
+
+# Ignore Git files
+.git/
+.gitignore
+
+# Ignore miscellaneous
+.DS_Store
