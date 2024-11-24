@@ -6,7 +6,7 @@ The `TokenInjectableDockerBuilder` is a flexible AWS CDK construct that enabled 
 
 AWS CDK already provides mechanisms for creating deployable assets using Docker, such as [DockerImageAsset](https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_ecr_assets.DockerImageAsset.html) and [DockerImageCode](https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_lambda.DockerImageCode.html), but these Constructs are limited because they cannot accept CDK tokens as build-args. With the TokenInjectableDockerBuilder, one can inject CDK tokens as build-time args into their Docker-based assets to satisfy a much larger range of dependency relationships.
 
-For example, imaging a NextJS frontend Docker image that calls an API Gateway endpoint. Logically, one would first deploy the API Gateway, then deploy the NextJS frontend such that it has reference to the API Gateway endpoint through a [build-time environment variable](https://nextjs.org/docs/pages/building-your-application/configuring/environment-variables). In this case, building the Docker-based asset before deployment time doesn't work since it is dependent on the deployment of the API Gateway.
+For example, imagine a NextJS frontend Docker image that calls an API Gateway endpoint. Logically, one would first deploy the API Gateway, then deploy the NextJS frontend such that it has reference to the API Gateway endpoint through a [build-time environment variable](https://nextjs.org/docs/pages/building-your-application/configuring/environment-variables). In this case, building the Docker-based asset before deployment time doesn't work since it is dependent on the deployment of the API Gateway.
 
 ## Features
 
