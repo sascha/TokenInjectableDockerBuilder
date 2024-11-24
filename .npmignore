@@ -26,7 +26,6 @@ cdk.out
 cdk.context.json
 yarn-error.log
 coverage
-integ
 !src/**
 /.gitattributes
 /.projenrc.ts

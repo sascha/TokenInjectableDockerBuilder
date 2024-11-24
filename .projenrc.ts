@@ -3,18 +3,9 @@ import { awscdk } from 'projen';
 const project = new awscdk.AwsCdkConstructLibrary({
   author: 'AlexTech314',
   authorAddress: 'alest314@gmail.com',
-  autoApproveOptions: {
-    allowedUsernames: ['AlexTech314'],
-  },
   majorVersion: 1,
-  autoDetectBin: true,
   cdkVersion: '2.166.0',
   defaultReleaseBranch: 'main',
-  depsUpgradeOptions: {
-    workflowOptions: {
-      labels: ['auto-approve'],
-    },
-  },
   jsiiVersion: '~5.5.0',
   name: 'token-injectable-docker-builder',
   projenrcTs: true,
@@ -55,7 +46,7 @@ const project = new awscdk.AwsCdkConstructLibrary({
 });
 
 project.gitignore.exclude('cdk.out', 'cdk.context.json', 'yarn-error.log', 'coverage');
-project.npmignore!.exclude('cdk.out', 'cdk.context.json', 'yarn-error.log', 'coverage', 'integ');
+project.npmignore!.exclude('cdk.out', 'cdk.context.json', 'yarn-error.log', 'coverage');
 
 project.gitignore.include('src/**');
 project.npmignore!.include('src/**');
