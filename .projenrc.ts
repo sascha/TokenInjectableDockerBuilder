@@ -7,7 +7,7 @@ const project = new awscdk.AwsCdkConstructLibrary({
     allowedUsernames: ['AlexTech314'],
   },
   majorVersion: 1,
-  autoDetectBin: false,
+  autoDetectBin: true,
   cdkVersion: '2.166.0',
   defaultReleaseBranch: 'main',
   depsUpgradeOptions: {
