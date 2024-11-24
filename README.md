@@ -1,6 +1,12 @@
 # TokenInjectableDockerBuilder
 
-The `TokenInjectableDockerBuilder` is a powerful AWS CDK construct that automates the building, pushing, and deployment of Docker images to Amazon Elastic Container Registry (ECR) using AWS CodeBuild and Lambda custom resources. This construct simplifies workflows by enabling token-based Docker image customization.
+The `TokenInjectableDockerBuilder` is a flexible AWS CDK construct that enabled the usage of AWS CDK tokens in the building, pushing, and deployment of Docker images to Amazon Elastic Container Registry (ECR). It leverages AWS CodeBuild and Lambda custom resources. 
+
+## Why?
+
+AWS CDK already provides mechanisms for creating deployable assets using Docker, such as [DockerImageAsset](https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_ecr_assets.DockerImageAsset.html) and [DockerImageCode](https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_lambda.DockerImageCode.html), but these Constructs are limited because they cannot accept CDK tokens as build-args. With the TokenInjectableDockerBuilder, one can inject CDK tokens as build-time args into their Docker-based assets to satisfy a much larger range of dependency relationships.
+
+For example, imaging a NextJS frontend Docker image that calls an API Gateway endpoint. Logically, one would first deploy the API Gateway, then deploy the NextJS frontend such that it has reference to the API Gateway endpoint through a [build-time environment variable](https://nextjs.org/docs/pages/building-your-application/configuring/environment-variables). In this case, building the Docker-based asset before deployment time doesn't work since it is dependent on the deployment of the API Gateway.
 
 ## Features
 
@@ -150,3 +156,9 @@ Ensure you have the following:
 1. **Build Errors**: Check the AWS CodeBuild logs in CloudWatch.
 2. **Lambda Function Errors**: Check the `onEvent` and `isComplete` Lambda logs in CloudWatch.
 3. **Permissions**: Ensure the IAM role for CodeBuild has the required permissions to interact with ECR and CloudWatch.
+
+---
+
+## Support
+
+Open an issue on [GitHub](https://github.com/AlexTech314/TokenInjectableDockerBuilder) :)
