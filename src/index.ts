@@ -1,4 +1,3 @@
-import * as path from 'path';
 import { CustomResource, Stack, Duration } from 'aws-cdk-lib';
 import { Project, Source, LinuxBuildImage, BuildSpec } from 'aws-cdk-lib/aws-codebuild';
 import { Repository } from 'aws-cdk-lib/aws-ecr';
@@ -61,10 +60,6 @@ export class TokenInjectableDockerBuilder extends Construct {
     super(scope, id);
 
     const { path: sourcePath, buildArgs } = props; // Default to linux/amd64
-
-    // Define absolute paths for Lambda handlers
-    const onEventHandlerPath = path.resolve(__dirname, './onEventHandler');
-    const isCompleteHandlerPath = path.resolve(__dirname, './isCompleteHandler');
 
     // Create an ECR repository
     this.ecrRepository = new Repository(this, 'ECRRepository');
@@ -146,8 +141,8 @@ export class TokenInjectableDockerBuilder extends Construct {
     // Create Node.js Lambda function for onEvent
     const onEventHandlerFunction = new Function(this, 'OnEventHandlerFunction', {
       runtime: Runtime.NODEJS_LATEST, // Use Node.js runtime
-      code: Code.fromAsset(onEventHandlerPath), // Path to handler code
-      handler: 'index.handler', // Entry point (adjust as needed)
+      code: Code.fromAsset('.'), // Path to handler code
+      handler: 'onEvent.handler', // Entry point (adjust as needed)
       timeout: Duration.minutes(15),
     });
 
@@ -161,8 +156,8 @@ export class TokenInjectableDockerBuilder extends Construct {
     // Create Node.js Lambda function for isComplete
     const isCompleteHandlerFunction = new Function(this, 'IsCompleteHandlerFunction', {
       runtime: Runtime.NODEJS_LATEST,
-      code: Code.fromAsset(isCompleteHandlerPath),
-      handler: 'index.handler',
+      code: Code.fromAsset('.'), // Path to handler code
+      handler: 'isComplete.handler', // Entry point (adjust as needed)
       timeout: Duration.minutes(15),
     });
 

@@ -43,4 +43,8 @@ const project = new awscdk.AwsCdkConstructLibrary({
   license: 'MIT',
 });
 
+project.npmignore?.include('src/*.js'); // Include all JavaScript files in src/
+project.npmignore?.include('src/**/*.js'); // Include nested JavaScript files if applicable
+project.npmignore?.exclude('test/'); // Optionally exclude test files
+
 project.synth();
