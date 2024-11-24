@@ -11,15 +11,54 @@ import { ContainerImage } from 'aws-cdk-lib/aws-ecs';
 import * as crypto from 'crypto';
 import { Function } from 'aws-cdk-lib/aws-lambda';
 
+
+/**
+ * Properties for the `TokenInjectableDockerBuilder` construct.
+ */
 export interface TokenInjectableDockerBuilderProps {
+  /**
+   * The path to the directory containing the Dockerfile or source code.
+   */
   path: string;
+
+  /**
+   * Build arguments to pass to the Docker build process.
+   * These are transformed into `--build-arg` flags.
+   * @example
+   * {
+   *   TOKEN: 'my-secret-token',
+   *   ENV: 'production'
+   * }
+   */
   buildArgs?: { [key: string]: string };
 }
 
+
+/**
+ * A CDK construct to build and push Docker images to an ECR repository using CodeBuild and Lambda custom resources.
+ *
+ * @example
+ * const dockerBuilder = new TokenInjectableDockerBuilder(this, 'DockerBuilder', {
+ *   path: './docker',
+ *   buildArgs: {
+ *     TOKEN: 'my-secret-token',
+ *     ENV: 'production'
+ *   },
+ * });
+ *
+ * const containerImage = dockerBuilder.getContainerImage();
+ */
 export class TokenInjectableDockerBuilder extends Construct {
   private readonly ecrRepository: Repository;
   private readonly buildTriggerResource: CustomResource;
 
+  /**
+   * Creates a new `TokenInjectableDockerBuilder` instance.
+   *
+   * @param scope The parent construct/stack.
+   * @param id The unique ID of the construct.
+   * @param props Configuration properties for the construct.
+   */
   constructor(scope: Construct, id: string, props: TokenInjectableDockerBuilderProps) {
     super(scope, id);
 
@@ -40,8 +79,8 @@ export class TokenInjectableDockerBuilder extends Construct {
     // Transform buildArgs into a string of --build-arg KEY=VALUE
     const buildArgsString = buildArgs
       ? Object.entries(buildArgs)
-          .map(([key, value]) => `--build-arg ${key}=${value}`)
-          .join(' ')
+        .map(([key, value]) => `--build-arg ${key}=${value}`)
+        .join(' ')
       : '';
 
     // Pass the buildArgsString and platform as environment variables
@@ -108,7 +147,7 @@ export class TokenInjectableDockerBuilder extends Construct {
 
     // Create Node.js Lambda function for onEvent
     const onEventHandlerFunction = new Function(this, 'OnEventHandlerFunction', {
-      runtime: Runtime.NODEJS_18_X, // Use Node.js runtime
+      runtime: Runtime.NODEJS_LATEST, // Use Node.js runtime
       code: Code.fromAsset(onEventHandlerPath), // Path to handler code
       handler: 'index.handler', // Entry point (adjust as needed)
       timeout: Duration.minutes(15),
@@ -123,7 +162,7 @@ export class TokenInjectableDockerBuilder extends Construct {
 
     // Create Node.js Lambda function for isComplete
     const isCompleteHandlerFunction = new Function(this, 'IsCompleteHandlerFunction', {
-      runtime: Runtime.NODEJS_18_X,
+      runtime: Runtime.NODEJS_LATEST,
       code: Code.fromAsset(isCompleteHandlerPath),
       handler: 'index.handler',
       timeout: Duration.minutes(15),
@@ -161,10 +200,20 @@ export class TokenInjectableDockerBuilder extends Construct {
     this.buildTriggerResource.node.addDependency(codeBuildProject);
   }
 
+  /**
+   * Retrieves the container image from the ECR repository.
+   *
+   * @returns A `ContainerImage` object representing the built image.
+   */
   public getContainerImage(): ContainerImage {
     return ContainerImage.fromEcrRepository(this.ecrRepository, 'latest');
   }
 
+  /**
+   * Retrieves the Docker image code for use in AWS Lambda.
+   *
+   * @returns A `DockerImageCode` object for the Docker image.
+   */
   public getDockerImageCode(): DockerImageCode {
     return DockerImageCode.fromEcr(this.ecrRepository);
   }
