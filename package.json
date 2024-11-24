@@ -45,6 +45,7 @@
     "cloud-development-kit",
     "ci-cd",
     "aws-ci-cd",
-    "infrastructure-as-code"
+    "infrastructure-as-code",
+    "awscdk"
   ]
 }
