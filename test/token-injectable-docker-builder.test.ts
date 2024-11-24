@@ -1,13 +1,14 @@
+import * as path from 'path';
 import * as cdk from 'aws-cdk-lib';
 import { Template } from 'aws-cdk-lib/assertions';
-import { TokenInjectableDockerBuilder } from '../lib/index';
+import { TokenInjectableDockerBuilder } from '../src';
 
 test('DockerImageAsset creates required resources', () => {
   const app = new cdk.App();
   const stack = new cdk.Stack(app, 'TestStack');
 
   new TokenInjectableDockerBuilder(stack, 'TestDockerImageAsset', {
-    path: './src/onEventHandler', // Path to Docker context
+    path: path.resolve(__dirname, './blank'), // Path to Docker context
     buildArgs: { ENV: 'test' },
   });
 

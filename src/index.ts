@@ -1,16 +1,13 @@
 import * as path from 'path';
-import { Duration, CustomResource, Stack } from 'aws-cdk-lib';
+import { CustomResource, Stack, Duration } from 'aws-cdk-lib';
 import { Project, Source, LinuxBuildImage, BuildSpec } from 'aws-cdk-lib/aws-codebuild';
 import { Repository } from 'aws-cdk-lib/aws-ecr';
+import { ContainerImage } from 'aws-cdk-lib/aws-ecs';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
-import { Code, DockerImageCode, Runtime } from 'aws-cdk-lib/aws-lambda';
+import { Runtime, Code, DockerImageCode, Function } from 'aws-cdk-lib/aws-lambda';
 import { Asset } from 'aws-cdk-lib/aws-s3-assets';
 import { Provider } from 'aws-cdk-lib/custom-resources';
 import { Construct } from 'constructs';
-import { ContainerImage } from 'aws-cdk-lib/aws-ecs';
-import * as crypto from 'crypto';
-import { Function } from 'aws-cdk-lib/aws-lambda';
-
 
 /**
  * Properties for the `TokenInjectableDockerBuilder` construct.
@@ -19,7 +16,7 @@ export interface TokenInjectableDockerBuilderProps {
   /**
    * The path to the directory containing the Dockerfile or source code.
    */
-  path: string;
+  readonly path: string;
 
   /**
    * Build arguments to pass to the Docker build process.
@@ -30,7 +27,7 @@ export interface TokenInjectableDockerBuilderProps {
    *   ENV: 'production'
    * }
    */
-  buildArgs?: { [key: string]: string };
+  readonly buildArgs?: { [key: string]: string };
 }
 
 
@@ -49,8 +46,9 @@ export interface TokenInjectableDockerBuilderProps {
  * const containerImage = dockerBuilder.getContainerImage();
  */
 export class TokenInjectableDockerBuilder extends Construct {
+  public readonly containerImage: ContainerImage;
+  public readonly dockerImageCode: DockerImageCode;
   private readonly ecrRepository: Repository;
-  private readonly buildTriggerResource: CustomResource;
 
   /**
    * Creates a new `TokenInjectableDockerBuilder` instance.
@@ -65,8 +63,8 @@ export class TokenInjectableDockerBuilder extends Construct {
     const { path: sourcePath, buildArgs } = props; // Default to linux/amd64
 
     // Define absolute paths for Lambda handlers
-    const onEventHandlerPath = path.resolve(__dirname, '../src/onEventHandler');
-    const isCompleteHandlerPath = path.resolve(__dirname, '../src/isCompleteHandler');
+    const onEventHandlerPath = path.resolve(__dirname, './onEventHandler');
+    const isCompleteHandlerPath = path.resolve(__dirname, './isCompleteHandler');
 
     // Create an ECR repository
     this.ecrRepository = new Repository(this, 'ECRRepository');
@@ -134,7 +132,7 @@ export class TokenInjectableDockerBuilder extends Construct {
       new PolicyStatement({
         actions: ['ecr:GetAuthorizationToken'],
         resources: ['*'],
-      })
+      }),
     );
 
     // Grant permissions to CodeBuild for CloudWatch Logs
@@ -142,7 +140,7 @@ export class TokenInjectableDockerBuilder extends Construct {
       new PolicyStatement({
         actions: ['logs:PutLogEvents', 'logs:CreateLogGroup', 'logs:CreateLogStream'],
         resources: [`arn:aws:logs:${Stack.of(this).region}:${Stack.of(this).account}:*`],
-      })
+      }),
     );
 
     // Create Node.js Lambda function for onEvent
@@ -157,7 +155,7 @@ export class TokenInjectableDockerBuilder extends Construct {
       new PolicyStatement({
         actions: ['codebuild:StartBuild'],
         resources: [codeBuildProject.projectArn], // Restrict to specific project
-      })
+      }),
     );
 
     // Create Node.js Lambda function for isComplete
@@ -175,21 +173,21 @@ export class TokenInjectableDockerBuilder extends Construct {
           'codebuild:ListBuildsForProject',
           'logs:GetLogEvents',
           'logs:DescribeLogStreams',
-          'logs:DescribeLogGroups'
+          'logs:DescribeLogGroups',
         ],
         resources: ['*'],
-      })
+      }),
     );
 
     // Create a custom resource provider
     const provider = new Provider(this, 'CustomResourceProvider', {
       onEventHandler: onEventHandlerFunction,
       isCompleteHandler: isCompleteHandlerFunction,
-      queryInterval: Duration.minutes(1),
+      queryInterval: Duration.seconds(30),
     });
 
     // Define the custom resource
-    this.buildTriggerResource = new CustomResource(this, 'BuildTriggerResource', {
+    const buildTriggerResource = new CustomResource(this, 'BuildTriggerResource', {
       serviceToken: provider.serviceToken,
       properties: {
         ProjectName: codeBuildProject.projectName,
@@ -197,24 +195,8 @@ export class TokenInjectableDockerBuilder extends Construct {
       },
     });
 
-    this.buildTriggerResource.node.addDependency(codeBuildProject);
-  }
-
-  /**
-   * Retrieves the container image from the ECR repository.
-   *
-   * @returns A `ContainerImage` object representing the built image.
-   */
-  public getContainerImage(): ContainerImage {
-    return ContainerImage.fromEcrRepository(this.ecrRepository, 'latest');
-  }
-
-  /**
-   * Retrieves the Docker image code for use in AWS Lambda.
-   *
-   * @returns A `DockerImageCode` object for the Docker image.
-   */
-  public getDockerImageCode(): DockerImageCode {
-    return DockerImageCode.fromEcr(this.ecrRepository);
+    buildTriggerResource.node.addDependency(codeBuildProject);
+    this.containerImage = ContainerImage.fromEcrRepository(this.ecrRepository);
+    this.dockerImageCode = DockerImageCode.fromEcr(this.ecrRepository);
   }
 }

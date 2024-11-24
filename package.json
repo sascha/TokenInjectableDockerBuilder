@@ -1,51 +1,160 @@
 {
   "name": "token-injectable-docker-builder",
-  "version": "0.1.6",
-  "main": "lib/index.js",
-  "types": "lib/index.d.ts",
+  "description": "The TokenInjectableDockerBuilder is a flexible AWS CDK construct that enables the usage of AWS CDK tokens in the building, pushing, and deployment of Docker images to Amazon Elastic Container Registry (ECR). It leverages AWS CodeBuild and Lambda custom resources.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AlexTech314/TokenInjectableDockerBuilder.git"
+  },
   "scripts": {
-    "build": "tsc",
-    "watch": "tsc -w",
-    "test": "jest"
+    "build": "npx projen build",
+    "bump": "npx projen bump",
+    "clobber": "npx projen clobber",
+    "compat": "npx projen compat",
+    "compile": "npx projen compile",
+    "default": "npx projen default",
+    "docgen": "npx projen docgen",
+    "eject": "npx projen eject",
+    "eslint": "npx projen eslint",
+    "package": "npx projen package",
+    "package-all": "npx projen package-all",
+    "package:js": "npx projen package:js",
+    "package:python": "npx projen package:python",
+    "post-compile": "npx projen post-compile",
+    "post-upgrade": "npx projen post-upgrade",
+    "pre-compile": "npx projen pre-compile",
+    "release": "npx projen release",
+    "test": "npx projen test",
+    "test:watch": "npx projen test:watch",
+    "unbump": "npx projen unbump",
+    "upgrade": "npx projen upgrade",
+    "watch": "npx projen watch",
+    "projen": "npx projen"
+  },
+  "author": {
+    "name": "AlexTech314",
+    "email": "alest314@gmail.com",
+    "organization": false
   },
   "devDependencies": {
-    "@aws-cdk/assertions": "^1.204.0",
+    "@stylistic/eslint-plugin": "^2",
     "@types/jest": "^29.5.14",
-    "@types/node": "22.7.9",
+    "@types/node": "^22.9.3",
+    "@typescript-eslint/eslint-plugin": "^8",
+    "@typescript-eslint/parser": "^8",
     "aws-cdk-lib": "2.166.0",
-    "constructs": "^10.0.0",
+    "commit-and-tag-version": "^12",
+    "constructs": "10.0.5",
+    "eslint": "^9",
+    "eslint-import-resolver-typescript": "^3.6.3",
+    "eslint-plugin-import": "^2.31.0",
     "jest": "^29.7.0",
+    "jest-junit": "^15",
+    "jsii": "~5.5.0",
+    "jsii-diff": "^1.105.0",
+    "jsii-docgen": "^10.5.0",
+    "jsii-pacmak": "^1.105.0",
+    "jsii-rosetta": "~5.5.0",
+    "projen": "^0.90.5",
     "ts-jest": "^29.2.5",
-    "typescript": "~5.6.3"
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.2"
   },
   "peerDependencies": {
-    "aws-cdk-lib": "2.166.0",
-    "constructs": "^10.0.0"
+    "aws-cdk-lib": "^2.166.0",
+    "constructs": "^10.0.5"
   },
   "keywords": [
     "aws",
-    "cdk",
     "aws-cdk",
-    "docker",
-    "ecr",
-    "lambda",
-    "custom-resource",
-    "docker-build",
-    "codebuild",
-    "token-injection",
-    "docker-image",
+    "aws-cdk-lib",
+    "aws-ci-cd",
     "aws-codebuild",
     "aws-ecr",
-    "docker-builder",
-    "cdk-construct",
-    "lambda-custom-resource",
-    "container-image",
     "aws-lambda",
-    "aws-cdk-lib",
-    "cloud-development-kit",
+    "awscdk",
+    "cdk",
+    "cdk-construct",
     "ci-cd",
-    "aws-ci-cd",
+    "cloud-development-kit",
+    "codebuild",
+    "container-image",
+    "custom-resource",
+    "docker",
+    "docker-build",
+    "docker-builder",
+    "docker-image",
+    "ecr",
     "infrastructure-as-code",
-    "awscdk"
-  ]
+    "lambda",
+    "lambda-custom-resource",
+    "token-injection"
+  ],
+  "main": "lib/index.js",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "version": "0.0.0",
+  "jest": {
+    "coverageProvider": "v8",
+    "testMatch": [
+      "<rootDir>/@(src|test)/**/*(*.)@(spec|test).ts?(x)",
+      "<rootDir>/@(src|test)/**/__tests__/**/*.ts?(x)",
+      "<rootDir>/@(projenrc)/**/*(*.)@(spec|test).ts?(x)",
+      "<rootDir>/@(projenrc)/**/__tests__/**/*.ts?(x)"
+    ],
+    "clearMocks": true,
+    "collectCoverage": true,
+    "coverageReporters": [
+      "json",
+      "lcov",
+      "clover",
+      "cobertura",
+      "text"
+    ],
+    "coverageDirectory": "coverage",
+    "coveragePathIgnorePatterns": [
+      "/node_modules/"
+    ],
+    "testPathIgnorePatterns": [
+      "/node_modules/"
+    ],
+    "watchPathIgnorePatterns": [
+      "/node_modules/"
+    ],
+    "reporters": [
+      "default",
+      [
+        "jest-junit",
+        {
+          "outputDirectory": "test-reports"
+        }
+      ]
+    ],
+    "transform": {
+      "^.+\\.[t]sx?$": [
+        "ts-jest",
+        {
+          "tsconfig": "tsconfig.dev.json"
+        }
+      ]
+    }
+  },
+  "types": "lib/index.d.ts",
+  "stability": "stable",
+  "jsii": {
+    "outdir": "dist",
+    "targets": {
+      "python": {
+        "distName": "token-injectable-docker-builder",
+        "module": "token_injectable_docker_builder"
+      }
+    },
+    "tsc": {
+      "outDir": "lib",
+      "rootDir": "src"
+    }
+  },
+  "//": "~~ Generated by projen. To modify, edit .projenrc.ts and run \"npx projen\".",
+  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
 }
