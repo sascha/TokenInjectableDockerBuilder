@@ -40,11 +40,7 @@ const project = new awscdk.AwsCdkConstructLibrary({
     'infrastructure-as-code',
     'awscdk',
   ],
-  license: 'MIT',
-  publishToPypi: {
-    distName: 'token-injectable-docker-builder',
-    module: 'token_injectable_docker_builder',
-  },
+  license: 'MIT'
 });
 
 project.synth();
