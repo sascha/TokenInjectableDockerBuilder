@@ -145,5 +145,4 @@ Open an issue on [GitHub](https://github.com/AlexTech314/TokenInjectableDockerBu
 ---
 
 ## Reference Links
-- [npm](https://www.npmjs.com/package/token-injectable-docker-builder)
-- [ConstructHub](https://constructs.dev/packages/token-injectable-docker-builder)
+[![View on Construct Hub](https://constructs.dev/badge?package=token-injectable-docker-builder)](https://constructs.dev/packages/token-injectable-docker-builder)
