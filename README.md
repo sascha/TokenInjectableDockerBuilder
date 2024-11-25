@@ -11,8 +11,7 @@ For example, imagine a NextJS frontend Docker image that calls an API Gateway en
 ## Features
 
 - Automatically builds and pushes Docker images to ECR.
-- Supports custom build arguments for Docker builds.
-- Provides Lambda functions to handle `onEvent` and `isComplete` lifecycle events for custom resources.
+- Supports custom build arguments for Docker builds, including CDK tokens that are resolved at deployment time.
 - Retrieves the latest Docker image from ECR for use in ECS or Lambda.
 
 ---
@@ -100,8 +99,8 @@ export class MyStack extends cdk.Stack {
    - Triggers the build process using a Lambda function (`onEvent`).
    - Monitors the build status using another Lambda function (`isComplete`).
 4. **Outputs**:
-   - Provides the Docker image via `getContainerImage()` for ECS use.
-   - Provides the Docker image code via `getDockerImageCode()` for Lambda.
+   - Provides the Docker image via `.containerImage` for ECS use.
+   - Provides the Docker image code via `.dockerImageCode` for Lambda.
 
 ---
 
