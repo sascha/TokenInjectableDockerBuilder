@@ -163,3 +163,8 @@ Ensure you have the following:
 
 Open an issue on [GitHub](https://github.com/AlexTech314/TokenInjectableDockerBuilder) :)
 
+---
+
+## Reference Links
+- [npm](https://www.npmjs.com/package/token-injectable-docker-builder)
+- [ConstructHub](https://constructs.dev/packages/token-injectable-docker-builder)
