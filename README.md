@@ -68,10 +68,10 @@ export class MyStack extends cdk.Stack {
     });
 
     // Retrieve the container image for ECS
-    const containerImage = dockerBuilder.getContainerImage();
+    const containerImage = dockerBuilder.containerImage;
 
     // Retrieve the Docker image code for Lambda
-    const dockerImageCode = dockerBuilder.getDockerImageCode();
+    const dockerImageCode = dockerBuilder.dockerImageCode;
 
     // Example: Use the container image in an ECS service
     new ecs.FargateTaskDefinition(this, 'TaskDefinition', {
@@ -102,26 +102,6 @@ export class MyStack extends cdk.Stack {
 4. **Outputs**:
    - Provides the Docker image via `getContainerImage()` for ECS use.
    - Provides the Docker image code via `getDockerImageCode()` for Lambda.
-
----
-
-## Methods
-
-### `getContainerImage()`
-
-Returns a `ContainerImage` object that can be used in ECS services.
-
-```typescript
-const containerImage = dockerBuilder.getContainerImage();
-```
-
-### `getDockerImageCode()`
-
-Returns a `DockerImageCode` object that can be used in Lambda functions.
-
-```typescript
-const dockerImageCode = dockerBuilder.getDockerImageCode();
-```
 
 ---
 
