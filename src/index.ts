@@ -8,6 +8,7 @@ import { Runtime, Code, DockerImageCode, Function } from 'aws-cdk-lib/aws-lambda
 import { Asset } from 'aws-cdk-lib/aws-s3-assets';
 import { Provider } from 'aws-cdk-lib/custom-resources';
 import { Construct } from 'constructs';
+import * as crypto from 'crypto';
 
 /**
  * Properties for the `TokenInjectableDockerBuilder` construct.
