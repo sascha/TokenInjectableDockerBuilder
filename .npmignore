@@ -22,7 +22,9 @@ dist
 tsconfig.tsbuildinfo
 /.eslintrc.json
 !.jsii
-!lib/**/*.js
+cdk.out
+cdk.context.json
+coverage
 /.gitattributes
 /.projenrc.ts
 /projenrc

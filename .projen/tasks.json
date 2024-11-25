@@ -91,7 +91,7 @@
           "exec": "jsii --silence-warnings=reserved-word"
         },
         {
-          "exec": "cp src/*.js lib/"
+          "exec": "mkdir -p lib && cp -r src/isComplete lib/ & cp -r src/onEvent lib/"
         }
       ]
     },

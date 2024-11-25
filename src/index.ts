@@ -1,3 +1,4 @@
+import * as path from 'path';
 import { CustomResource, Stack, Duration } from 'aws-cdk-lib';
 import { Project, Source, LinuxBuildImage, BuildSpec } from 'aws-cdk-lib/aws-codebuild';
 import { Repository } from 'aws-cdk-lib/aws-ecr';
@@ -141,7 +142,7 @@ export class TokenInjectableDockerBuilder extends Construct {
     // Create Node.js Lambda function for onEvent
     const onEventHandlerFunction = new Function(this, 'OnEventHandlerFunction', {
       runtime: Runtime.NODEJS_LATEST, // Use Node.js runtime
-      code: Code.fromAsset('.'), // Path to handler code
+      code: Code.fromAsset(path.resolve(__dirname, './onEvent')), // Path to handler code
       handler: 'onEvent.handler', // Entry point (adjust as needed)
       timeout: Duration.minutes(15),
     });
@@ -156,7 +157,7 @@ export class TokenInjectableDockerBuilder extends Construct {
     // Create Node.js Lambda function for isComplete
     const isCompleteHandlerFunction = new Function(this, 'IsCompleteHandlerFunction', {
       runtime: Runtime.NODEJS_LATEST,
-      code: Code.fromAsset('.'), // Path to handler code
+      code: Code.fromAsset(path.resolve(__dirname, './isComplete')), // Path to handler code
       handler: 'isComplete.handler', // Entry point (adjust as needed)
       timeout: Duration.minutes(15),
     });
