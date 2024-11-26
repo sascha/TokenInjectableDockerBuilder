@@ -1,6 +1,6 @@
 # TokenInjectableDockerBuilder
 
-The `TokenInjectableDockerBuilder` is a flexible AWS CDK construct that enables the usage of AWS CDK tokens in the building, pushing, and deployment of Docker images to Amazon Elastic Container Registry (ECR). It leverages AWS CodeBuild and Lambda custom resources. 
+The `TokenInjectableDockerBuilder` is a flexible AWS CDK construct that enables the usage of AWS CDK tokens in the building, pushing, and deployment of Docker images to Amazon Elastic Container Registry (ECR). It leverages AWS CodeBuild and Lambda custom resources.
 
 ## Why?
 
@@ -18,10 +18,20 @@ For example, imagine a NextJS frontend Docker image that calls an API Gateway en
 
 ## Installation
 
-First, install the construct using NPM:
+### For NPM
+
+Install the construct using NPM:
 
 ```bash
 npm install token-injectable-docker-builder
+```
+
+### For Python
+
+Install the construct using pip:
+
+```bash
+pip install token-injectable-docker-builder
 ```
 
 ---
@@ -46,6 +56,8 @@ npm install token-injectable-docker-builder
 ---
 
 ## Usage Example
+
+### NPM/TypeScript Example
 
 Here is an example of how to use the `TokenInjectableDockerBuilder` in your AWS CDK application:
 
@@ -85,6 +97,49 @@ export class MyStack extends cdk.Stack {
     });
   }
 }
+```
+
+### Python Example
+
+Here is an example of how to use the `TokenInjectableDockerBuilder` in your AWS CDK application using Python:
+
+```python
+from aws_cdk import core as cdk
+from token_injectable_docker_builder import TokenInjectableDockerBuilder
+from aws_cdk import aws_ecs as ecs
+from aws_cdk import aws_lambda as lambda_
+
+class MyStack(cdk.Stack):
+
+    def __init__(self, scope: cdk.App, id: str, **kwargs):
+        super().__init__(scope, id, **kwargs)
+
+        # Create a TokenInjectableDockerBuilder construct
+        docker_builder = TokenInjectableDockerBuilder(self, "MyDockerBuilder",
+            path="./docker",  # Path to the directory containing your Dockerfile
+            build_args={
+                "TOKEN": "my-secret-token",  # Example of a build argument
+                "ENV": "production"
+            }
+        )
+
+        # Retrieve the container image for ECS
+        container_image = docker_builder.container_image
+
+        # Retrieve the Docker image code for Lambda
+        docker_image_code = docker_builder.docker_image_code
+
+        # Example: Use the container image in an ECS service
+        ecs.FargateTaskDefinition(self, "TaskDefinition",
+            container_image=container_image
+        )
+
+        # Example: Use the Docker image code in a Lambda function
+        lambda_.Function(self, "DockerLambdaFunction",
+            runtime=lambda_.Runtime.FROM_IMAGE,
+            code=docker_image_code,
+            handler=lambda_.Handler.FROM_IMAGE
+        )
 ```
 
 ---
