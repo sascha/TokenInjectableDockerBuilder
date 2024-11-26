@@ -89,9 +89,6 @@
       "steps": [
         {
           "exec": "jsii --silence-warnings=reserved-word"
-        },
-        {
-          "exec": "mkdir -p lib && cp -r src/isComplete lib/ & cp -r src/onEvent lib/"
         }
       ]
     },

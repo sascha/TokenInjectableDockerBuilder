@@ -43,14 +43,11 @@ const project = new awscdk.AwsCdkConstructLibrary({
   license: 'MIT',
 });
 
-project.tsconfigDev?.addInclude('src/**/*.js');
-project.tsconfig?.addInclude('src/**/*.js');
-
-project.compileTask?.exec('mkdir -p lib && cp -r src/isComplete lib/ & cp -r src/onEvent lib/');
-
 const common_exclude = ['cdk.out', 'cdk.context.json', 'coverage'];
 
 project.gitignore.exclude(...common_exclude);
 project.npmignore!.exclude(...common_exclude);
+
+project.npmignore!.include('isComplete/*.js', 'onEvent/*.js');
 
 project.synth();

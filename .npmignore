@@ -25,6 +25,8 @@ tsconfig.tsbuildinfo
 cdk.out
 cdk.context.json
 coverage
+!isComplete/*.js
+!onEvent/*.js
 /.gitattributes
 /.projenrc.ts
 /projenrc
