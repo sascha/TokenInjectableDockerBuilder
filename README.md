@@ -2,17 +2,21 @@
 
 The `TokenInjectableDockerBuilder` is a flexible AWS CDK construct that enables the usage of AWS CDK tokens in the building, pushing, and deployment of Docker images to Amazon Elastic Container Registry (ECR). It leverages AWS CodeBuild and Lambda custom resources.
 
+---
+
 ## Why?
 
-AWS CDK already provides mechanisms for creating deployable assets using Docker, such as [DockerImageAsset](https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_ecr_assets.DockerImageAsset.html) and [DockerImageCode](https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_lambda.DockerImageCode.html), but these Constructs are limited because they cannot accept CDK tokens as build-args. With the TokenInjectableDockerBuilder, one can inject CDK tokens as build-time args into their Docker-based assets to satisfy a much larger range of dependency relationships.
+AWS CDK already provides mechanisms for creating deployable assets using Docker, such as [DockerImageAsset](https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_ecr_assets.DockerImageAsset.html) and [DockerImageCode](https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_lambda.DockerImageCode.html), but these Constructs are limited because they cannot accept CDK tokens as build-args. The `TokenInjectableDockerBuilder` allows injecting CDK tokens as build-time arguments into Docker-based assets, enabling more dynamic dependency relationships.
 
-For example, imagine a NextJS frontend Docker image that calls an API Gateway endpoint. Logically, one would first deploy the API Gateway, then deploy the NextJS frontend such that it has reference to the API Gateway endpoint through a [build-time environment variable](https://nextjs.org/docs/pages/building-your-application/configuring/environment-variables). In this case, building the Docker-based asset before deployment time doesn't work since it is dependent on the deployment of the API Gateway.
+For example, a Next.js frontend Docker image may require an API Gateway URL. With this construct, you can deploy the API Gateway first, then pass its URL as a build-time argument to the Next.js Docker image.
+
+---
 
 ## Features
 
 - Automatically builds and pushes Docker images to ECR.
-- Supports custom build arguments for Docker builds, including CDK tokens that are resolved at deployment time.
-- Retrieves the latest Docker image from ECR for use in ECS or Lambda.
+- Supports custom build arguments for Docker builds, including CDK tokens resolved at deployment time.
+- Retrieves Docker images for use in ECS or Lambda.
 
 ---
 
@@ -48,60 +52,59 @@ pip install token-injectable-docker-builder
 
 #### Properties in `TokenInjectableDockerBuilderProps`
 
-| Property       | Type                              | Required | Description                                                |
-|----------------|-----------------------------------|----------|------------------------------------------------------------|
-| `path`         | `string`                         | Yes      | The file path to the Dockerfile or source code directory.  |
-| `buildArgs`    | `{ [key: string]: string }`       | No       | Build arguments to pass to the Docker build process.       |
+| Property               | Type               | Required | Description                                                                                           |
+|------------------------|--------------------|----------|-------------------------------------------------------------------------------------------------------|
+| `path`                 | `string`          | Yes      | The file path to the Dockerfile or source code directory.                                             |
+| `buildArgs`            | `{ [key: string]: string }` | No | Build arguments to pass to the Docker build process.                                                  |
+| `dockerLoginSecretArn` | `string`          | No       | ARN of an AWS Secrets Manager secret for Docker credentials. Skips login if not provided.             |
 
 ---
 
-## Usage Example
+## Usage Examples
 
-### NPM/TypeScript Example
+### TypeScript/NPM Example
 
-Here is an example of how to use the `TokenInjectableDockerBuilder` in your AWS CDK application:
+Here is how to use `TokenInjectableDockerBuilder` in an AWS CDK project with TypeScript:
 
 ```typescript
 import * as cdk from 'aws-cdk-lib';
 import { TokenInjectableDockerBuilder } from 'token-injectable-docker-builder';
+import * as ecs from 'aws-cdk-lib/aws-ecs';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
 
 export class MyStack extends cdk.Stack {
   constructor(scope: cdk.App, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    // Create a TokenInjectableDockerBuilder construct
     const dockerBuilder = new TokenInjectableDockerBuilder(this, 'MyDockerBuilder', {
-      path: './docker', // Path to the directory containing your Dockerfile
+      path: './docker',
       buildArgs: {
-        TOKEN: 'my-secret-token', // Example of a build argument
+        TOKEN: 'my-secret-token',
         ENV: 'production',
       },
+      dockerLoginSecretArn: 'arn:aws:secretsmanager:us-east-1:123456789012:secret:DockerLoginSecret',
     });
 
-    // Retrieve the container image for ECS
-    const containerImage = dockerBuilder.containerImage;
-
-    // Retrieve the Docker image code for Lambda
-    const dockerImageCode = dockerBuilder.dockerImageCode;
-
-    // Example: Use the container image in an ECS service
+    // Use in ECS
     new ecs.FargateTaskDefinition(this, 'TaskDefinition', {
-      containerImage,
+      containerImage: dockerBuilder.containerImage,
     });
 
-    // Example: Use the Docker image code in a Lambda function
+    // Use in Lambda
     new lambda.Function(this, 'DockerLambdaFunction', {
       runtime: lambda.Runtime.FROM_IMAGE,
-      code: dockerImageCode,
+      code: dockerBuilder.dockerImageCode,
       handler: lambda.Handler.FROM_IMAGE,
     });
   }
 }
 ```
 
+---
+
 ### Python Example
 
-Here is an example of how to use the `TokenInjectableDockerBuilder` in your AWS CDK application using Python:
+Here is how to use `TokenInjectableDockerBuilder` in an AWS CDK project with Python:
 
 ```python
 from aws_cdk import core as cdk
@@ -114,30 +117,24 @@ class MyStack(cdk.Stack):
     def __init__(self, scope: cdk.App, id: str, **kwargs):
         super().__init__(scope, id, **kwargs)
 
-        # Create a TokenInjectableDockerBuilder construct
         docker_builder = TokenInjectableDockerBuilder(self, "MyDockerBuilder",
-            path="./docker",  # Path to the directory containing your Dockerfile
+            path="./docker",
             build_args={
-                "TOKEN": "my-secret-token",  # Example of a build argument
+                "TOKEN": "my-secret-token",
                 "ENV": "production"
-            }
+            },
+            docker_login_secret_arn="arn:aws:secretsmanager:us-east-1:123456789012:secret:DockerLoginSecret"
         )
 
-        # Retrieve the container image for ECS
-        container_image = docker_builder.container_image
-
-        # Retrieve the Docker image code for Lambda
-        docker_image_code = docker_builder.docker_image_code
-
-        # Example: Use the container image in an ECS service
+        # Use in ECS
         ecs.FargateTaskDefinition(self, "TaskDefinition",
-            container_image=container_image
+            container_image=docker_builder.container_image
         )
 
-        # Example: Use the Docker image code in a Lambda function
+        # Use in Lambda
         lambda_.Function(self, "DockerLambdaFunction",
             runtime=lambda_.Runtime.FROM_IMAGE,
-            code=docker_image_code,
+            code=docker_builder.docker_image_code,
             handler=lambda_.Handler.FROM_IMAGE
         )
 ```
@@ -146,56 +143,47 @@ class MyStack(cdk.Stack):
 
 ## How It Works
 
-1. **Docker Source**: The construct packages the source code or Dockerfile specified in the `path` property as an S3 asset.
+1. **Docker Source**: Packages the source code or Dockerfile specified in the `path` property as an S3 asset.
 2. **CodeBuild Project**:
-   - Uses the packaged asset and build arguments to build the Docker image.
+   - Uses the packaged asset and `buildArgs` to build the Docker image.
    - Pushes the image to an ECR repository.
 3. **Custom Resource**:
    - Triggers the build process using a Lambda function (`onEvent`).
    - Monitors the build status using another Lambda function (`isComplete`).
 4. **Outputs**:
-   - Provides the Docker image via `.containerImage` for ECS use.
-   - Provides the Docker image code via `.dockerImageCode` for Lambda.
+   - `.containerImage`: Returns the Docker image for ECS.
+   - `.dockerImageCode`: Returns the Docker image code for Lambda.
 
 ---
 
 ## IAM Permissions
 
-This construct automatically grants the required IAM permissions for:
+The construct automatically grants permissions for:
 - CodeBuild to pull and push images to ECR.
-- CodeBuild to write logs to CloudWatch.
-- Lambda functions to monitor the build status and retrieve logs.
+- Lambda to monitor build status and retrieve logs.
+- Encryption via a custom KMS key.
 
 ---
 
 ## Notes
 
-- **Build Arguments**: Use the `buildArgs` property to pass custom arguments to the Docker build process. These are transformed into `--build-arg` flags.
-- **ECR Repository**: A new ECR repository is created automatically.
-- **Custom Resources**: Custom resources are used to handle lifecycle events and ensure the build is completed successfully.
-
----
-
-## Prerequisites
-
-Ensure you have the following:
-1. Docker installed locally if you're testing builds.
-2. AWS CDK CLI installed (`npm install -g aws-cdk`).
-3. An AWS account and configured credentials.
+- **Build Arguments**: Pass custom arguments via `buildArgs` as `--build-arg` flags.
+- **ECR Repository**: Automatically creates an ECR repository with lifecycle rules.
+- **Custom Resources**: Manages lifecycle events for builds using custom Lambda handlers.
 
 ---
 
 ## Troubleshooting
 
-1. **Build Errors**: Check the AWS CodeBuild logs in CloudWatch.
-2. **Lambda Function Errors**: Check the `onEvent` and `isComplete` Lambda logs in CloudWatch.
-3. **Permissions**: Ensure the IAM role for CodeBuild has the required permissions to interact with ECR and CloudWatch.
+1. **Build Errors**: Check CodeBuild logs in CloudWatch.
+2. **Lambda Errors**: Check `onEvent` and `isComplete` Lambda logs in CloudWatch.
+3. **Permissions**: Ensure IAM roles have the required permissions for CodeBuild, ECR, and Secrets Manager.
 
 ---
 
 ## Support
 
-Open an issue on [GitHub](https://github.com/AlexTech314/TokenInjectableDockerBuilder) :)
+Open an issue on [GitHub](https://github.com/AlexTech314/TokenInjectableDockerBuilder).
 
 ---
 

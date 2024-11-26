@@ -25,7 +25,7 @@ tsconfig.tsbuildinfo
 cdk.out
 cdk.context.json
 coverage
-src/integ.default.ts
+lib/integ.*
 test-docker
 !isComplete/*.js
 !onEvent/*.js

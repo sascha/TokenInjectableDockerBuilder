@@ -50,7 +50,7 @@ const project = new awscdk.AwsCdkConstructLibrary({
 const common_exclude = ['cdk.out', 'cdk.context.json', 'coverage'];
 
 project.gitignore.exclude(...common_exclude);
-project.npmignore!.exclude(...common_exclude, 'src/integ.default.ts', 'test-docker');
+project.npmignore!.exclude(...common_exclude, 'lib/integ.*', 'test-docker');
 
 project.npmignore!.include('isComplete/*.js', 'onEvent/*.js');
 
