@@ -6,21 +6,6 @@
 
 A CDK construct to build and push Docker images to an ECR repository using CodeBuild and Lambda custom resources.
 
-*Example*
-
-```typescript
-const dockerBuilder = new TokenInjectableDockerBuilder(this, 'DockerBuilder', {
-  path: './docker',
-  buildArgs: {
-    TOKEN: 'my-secret-token',
-    ENV: 'production'
-  },
-});
-
-const containerImage = dockerBuilder.getContainerImage();
-```
-
-
 #### Initializers <a name="Initializers" id="token-injectable-docker-builder.TokenInjectableDockerBuilder.Initializer"></a>
 
 ```typescript
@@ -31,9 +16,9 @@ new TokenInjectableDockerBuilder(scope: Construct, id: string, props: TokenInjec
 
 | **Name** | **Type** | **Description** |
 | --- | --- | --- |
-| <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilder.Initializer.parameter.scope">scope</a></code> | <code>constructs.Construct</code> | The parent construct/stack. |
-| <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilder.Initializer.parameter.id">id</a></code> | <code>string</code> | The unique ID of the construct. |
-| <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilder.Initializer.parameter.props">props</a></code> | <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilderProps">TokenInjectableDockerBuilderProps</a></code> | Configuration properties for the construct. |
+| <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilder.Initializer.parameter.scope">scope</a></code> | <code>constructs.Construct</code> | *No description.* |
+| <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilder.Initializer.parameter.id">id</a></code> | <code>string</code> | *No description.* |
+| <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilder.Initializer.parameter.props">props</a></code> | <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilderProps">TokenInjectableDockerBuilderProps</a></code> | *No description.* |
 
 ---
 
@@ -41,23 +26,17 @@ new TokenInjectableDockerBuilder(scope: Construct, id: string, props: TokenInjec
 
 - *Type:* constructs.Construct
 
-The parent construct/stack.
-
 ---
 
 ##### `id`<sup>Required</sup> <a name="id" id="token-injectable-docker-builder.TokenInjectableDockerBuilder.Initializer.parameter.id"></a>
 
 - *Type:* string
 
-The unique ID of the construct.
-
 ---
 
 ##### `props`<sup>Required</sup> <a name="props" id="token-injectable-docker-builder.TokenInjectableDockerBuilder.Initializer.parameter.props"></a>
 
 - *Type:* <a href="#token-injectable-docker-builder.TokenInjectableDockerBuilderProps">TokenInjectableDockerBuilderProps</a>
-
-Configuration properties for the construct.
 
 ---
 
@@ -166,6 +145,7 @@ const tokenInjectableDockerBuilderProps: TokenInjectableDockerBuilderProps = { .
 | --- | --- | --- |
 | <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilderProps.property.path">path</a></code> | <code>string</code> | The path to the directory containing the Dockerfile or source code. |
 | <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilderProps.property.buildArgs">buildArgs</a></code> | <code>{[ key: string ]: string}</code> | Build arguments to pass to the Docker build process. |
+| <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilderProps.property.dockerLoginSecretArn">dockerLoginSecretArn</a></code> | <code>string</code> | The ARN of the AWS Secrets Manager secret containing Docker login credentials. |
 
 ---
 
@@ -202,6 +182,34 @@ These are transformed into `--build-arg` flags.
   TOKEN: 'my-secret-token',
   ENV: 'production'
 }
+```
+
+
+##### `dockerLoginSecretArn`<sup>Optional</sup> <a name="dockerLoginSecretArn" id="token-injectable-docker-builder.TokenInjectableDockerBuilderProps.property.dockerLoginSecretArn"></a>
+
+```typescript
+public readonly dockerLoginSecretArn: string;
+```
+
+- *Type:* string
+
+The ARN of the AWS Secrets Manager secret containing Docker login credentials.
+
+This secret should store a JSON object with the following structure:
+```json
+{
+  "username": "my-docker-username",
+  "password": "my-docker-password"
+}
+```
+If not provided, the construct will skip Docker login during the build process.
+
+---
+
+*Example*
+
+```typescript
+'arn:aws:secretsmanager:us-east-1:123456789012:secret:DockerLoginSecret'
 ```
 
 

@@ -50,8 +50,13 @@ const project = new awscdk.AwsCdkConstructLibrary({
 const common_exclude = ['cdk.out', 'cdk.context.json', 'coverage'];
 
 project.gitignore.exclude(...common_exclude);
-project.npmignore!.exclude(...common_exclude);
+project.npmignore!.exclude(...common_exclude, 'src/integ.default.ts', 'test-docker');
 
 project.npmignore!.include('isComplete/*.js', 'onEvent/*.js');
+
+project.addScripts({
+  'local-deploy': 'cdk deploy --app "npx ts-node src/integ.default.ts"',
+  'local-destroy': 'cdk destroy --app "npx ts-node src/integ.default.ts"',
+});
 
 project.synth();

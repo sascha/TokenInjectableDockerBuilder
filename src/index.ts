@@ -1,10 +1,11 @@
 import * as crypto from 'crypto';
 import * as path from 'path';
-import { CustomResource, Stack, Duration } from 'aws-cdk-lib';
+import { CustomResource, Duration } from 'aws-cdk-lib';
 import { Project, Source, LinuxBuildImage, BuildSpec } from 'aws-cdk-lib/aws-codebuild';
-import { Repository } from 'aws-cdk-lib/aws-ecr';
+import { Repository, RepositoryEncryption, TagStatus } from 'aws-cdk-lib/aws-ecr';
 import { ContainerImage } from 'aws-cdk-lib/aws-ecs';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
+import { Key } from 'aws-cdk-lib/aws-kms';
 import { Runtime, Code, DockerImageCode, Function } from 'aws-cdk-lib/aws-lambda';
 import { Asset } from 'aws-cdk-lib/aws-s3-assets';
 import { Provider } from 'aws-cdk-lib/custom-resources';
@@ -29,46 +30,59 @@ export interface TokenInjectableDockerBuilderProps {
    * }
    */
   readonly buildArgs?: { [key: string]: string };
-}
 
+  /**
+   * The ARN of the AWS Secrets Manager secret containing Docker login credentials.
+   * This secret should store a JSON object with the following structure:
+   * ```json
+   * {
+   *   "username": "my-docker-username",
+   *   "password": "my-docker-password"
+   * }
+   * ```
+   * If not provided, the construct will skip Docker login during the build process.
+   *
+   * @example 'arn:aws:secretsmanager:us-east-1:123456789012:secret:DockerLoginSecret'
+   */
+  readonly dockerLoginSecretArn?: string;
+}
 
 /**
  * A CDK construct to build and push Docker images to an ECR repository using CodeBuild and Lambda custom resources.
- *
- * @example
- * const dockerBuilder = new TokenInjectableDockerBuilder(this, 'DockerBuilder', {
- *   path: './docker',
- *   buildArgs: {
- *     TOKEN: 'my-secret-token',
- *     ENV: 'production'
- *   },
- * });
- *
- * const containerImage = dockerBuilder.getContainerImage();
  */
 export class TokenInjectableDockerBuilder extends Construct {
+  private readonly ecrRepository: Repository;
   public readonly containerImage: ContainerImage;
   public readonly dockerImageCode: DockerImageCode;
-  private readonly ecrRepository: Repository;
 
-  /**
-   * Creates a new `TokenInjectableDockerBuilder` instance.
-   *
-   * @param scope The parent construct/stack.
-   * @param id The unique ID of the construct.
-   * @param props Configuration properties for the construct.
-   */
   constructor(scope: Construct, id: string, props: TokenInjectableDockerBuilderProps) {
     super(scope, id);
 
-    const { path: sourcePath, buildArgs } = props; // Default to linux/amd64
+    const { path: sourcePath, buildArgs, dockerLoginSecretArn } = props;
 
-    // Create an ECR repository
-    this.ecrRepository = new Repository(this, 'ECRRepository');
+    // Define a KMS key for ECR encryption
+    const encryptionKey = new Key(this, 'EcrEncryptionKey', {
+      enableKeyRotation: true,
+    });
+
+    // Create an ECR repository with lifecycle rules, encryption, and image scanning enabled
+    this.ecrRepository = new Repository(this, 'ECRRepository', {
+      lifecycleRules: [
+        {
+          rulePriority: 1,
+          description: 'Remove untagged images after 30 days',
+          tagStatus: TagStatus.UNTAGGED,
+          maxImageAge: Duration.days(1),
+        },
+      ],
+      encryption: RepositoryEncryption.KMS,
+      encryptionKey: encryptionKey,
+      imageScanOnPush: true,
+    });
 
     // Package the source code as an asset
     const sourceAsset = new Asset(this, 'SourceAsset', {
-      path: sourcePath, // Path to the Dockerfile or source code
+      path: sourcePath,
     });
 
     // Transform buildArgs into a string of --build-arg KEY=VALUE
@@ -78,11 +92,16 @@ export class TokenInjectableDockerBuilder extends Construct {
         .join(' ')
       : '';
 
-    // Pass the buildArgsString and platform as environment variables
-    const environmentVariables: { [name: string]: { value: string } } = {
-      ECR_REPO_URI: { value: this.ecrRepository.repositoryUri },
-      BUILD_ARGS: { value: buildArgsString },
-    };
+    // Conditional Dockerhub login commands
+    const dockerLoginCommands = dockerLoginSecretArn
+      ? [
+        'echo "Retrieving Docker credentials from Secrets Manager..."',
+        `DOCKER_USERNAME=$(aws secretsmanager get-secret-value --secret-id ${dockerLoginSecretArn} --query SecretString --output text | jq -r .username)`,
+        `DOCKER_PASSWORD=$(aws secretsmanager get-secret-value --secret-id ${dockerLoginSecretArn} --query SecretString --output text | jq -r .password)`,
+        'echo "Logging in to Docker..."',
+        'echo $DOCKER_PASSWORD | docker login --username $DOCKER_USERNAME --password-stdin',
+      ]
+      : ['echo "No Docker credentials provided. Skipping login step."'];
 
     // Create a CodeBuild project
     const codeBuildProject = new Project(this, 'UICodeBuildProject', {
@@ -92,14 +111,18 @@ export class TokenInjectableDockerBuilder extends Construct {
       }),
       environment: {
         buildImage: LinuxBuildImage.STANDARD_7_0,
-        privileged: true, // Required for Docker builds
+        privileged: true,
       },
-      environmentVariables: environmentVariables,
+      environmentVariables: {
+        ECR_REPO_URI: { value: this.ecrRepository.repositoryUri },
+        BUILD_ARGS: { value: buildArgsString },
+      },
       buildSpec: BuildSpec.fromObject({
         version: '0.2',
         phases: {
           pre_build: {
             commands: [
+              ...dockerLoginCommands,
               'echo "Retrieving AWS Account ID..."',
               'export ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)',
               'echo "Logging in to Amazon ECR..."',
@@ -122,29 +145,33 @@ export class TokenInjectableDockerBuilder extends Construct {
       }),
     });
 
-    // Grant permissions to interact with ECR
+    // Grant permissions to CodeBuild
     this.ecrRepository.grantPullPush(codeBuildProject);
 
     codeBuildProject.role!.addToPrincipalPolicy(
       new PolicyStatement({
-        actions: ['ecr:GetAuthorizationToken'],
-        resources: ['*'],
+        actions: ['ecr:GetAuthorizationToken', 'ecr:GetDownloadUrlForLayer', 'ecr:BatchCheckLayerAvailability'],
+        resources: [this.ecrRepository.repositoryArn],
       }),
     );
 
-    // Grant permissions to CodeBuild for CloudWatch Logs
-    codeBuildProject.role!.addToPrincipalPolicy(
-      new PolicyStatement({
-        actions: ['logs:PutLogEvents', 'logs:CreateLogGroup', 'logs:CreateLogStream'],
-        resources: [`arn:aws:logs:${Stack.of(this).region}:${Stack.of(this).account}:*`],
-      }),
-    );
+    if (dockerLoginSecretArn) {
+      codeBuildProject.role!.addToPrincipalPolicy(
+        new PolicyStatement({
+          actions: ['secretsmanager:GetSecretValue'],
+          resources: [dockerLoginSecretArn],
+        }),
+      );
+    }
 
-    // Create Node.js Lambda function for onEvent
+    // Grant CodeBuild access to the KMS key
+    encryptionKey.grantEncryptDecrypt(codeBuildProject.role!);
+
+    // Create Lambda functions for onEvent and isComplete handlers
     const onEventHandlerFunction = new Function(this, 'OnEventHandlerFunction', {
-      runtime: Runtime.NODEJS_LATEST, // Use Node.js runtime
-      code: Code.fromAsset(path.resolve(__dirname, '../onEvent')), // Path to handler code
-      handler: 'onEvent.handler', // Entry point (adjust as needed)
+      runtime: Runtime.NODEJS_18_X,
+      code: Code.fromAsset(path.resolve(__dirname, '../onEvent')),
+      handler: 'onEvent.handler',
       timeout: Duration.minutes(15),
     });
 
@@ -154,12 +181,10 @@ export class TokenInjectableDockerBuilder extends Construct {
         resources: [codeBuildProject.projectArn], // Restrict to specific project
       }),
     );
-
-    // Create Node.js Lambda function for isComplete
     const isCompleteHandlerFunction = new Function(this, 'IsCompleteHandlerFunction', {
-      runtime: Runtime.NODEJS_LATEST,
-      code: Code.fromAsset(path.resolve(__dirname, '../isComplete')), // Path to handler code
-      handler: 'isComplete.handler', // Entry point (adjust as needed)
+      runtime: Runtime.NODEJS_18_X,
+      code: Code.fromAsset(path.resolve(__dirname, '../isComplete')),
+      handler: 'isComplete.handler',
       timeout: Duration.minutes(15),
     });
 
@@ -175,6 +200,12 @@ export class TokenInjectableDockerBuilder extends Construct {
         resources: ['*'],
       }),
     );
+
+    // Grant Lambda functions access to KMS key and ECR
+    encryptionKey.grantEncryptDecrypt(onEventHandlerFunction);
+    encryptionKey.grantEncryptDecrypt(isCompleteHandlerFunction);
+    this.ecrRepository.grantPullPush(onEventHandlerFunction);
+    this.ecrRepository.grantPullPush(isCompleteHandlerFunction);
 
     // Create a custom resource provider
     const provider = new Provider(this, 'CustomResourceProvider', {
