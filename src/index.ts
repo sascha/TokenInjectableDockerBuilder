@@ -70,8 +70,8 @@ export class TokenInjectableDockerBuilder extends Construct {
       lifecycleRules: [
         {
           rulePriority: 1,
-          description: 'Remove stale images',
-          tagStatus: TagStatus.ANY,
+          description: 'Remove untagged images after 1 day',
+          tagStatus: TagStatus.UNTAGGED,
           maxImageAge: Duration.days(1),
         },
       ],
