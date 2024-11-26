@@ -41,6 +41,10 @@ const project = new awscdk.AwsCdkConstructLibrary({
     'awscdk',
   ],
   license: 'MIT',
+  publishToPypi: {
+    distName: 'token-injectable-docker-builder',
+    module: 'token_injectable_docker_builder',
+  },
 });
 
 const common_exclude = ['cdk.out', 'cdk.context.json', 'coverage'];
