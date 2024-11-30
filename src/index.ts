@@ -2,6 +2,7 @@ import * as crypto from 'crypto';
 import * as path from 'path';
 import { CustomResource, Duration } from 'aws-cdk-lib';
 import { Project, Source, LinuxBuildImage, BuildSpec } from 'aws-cdk-lib/aws-codebuild';
+import { IVpc, ISecurityGroup, SubnetSelection } from 'aws-cdk-lib/aws-ec2';
 import { Repository, RepositoryEncryption, TagStatus } from 'aws-cdk-lib/aws-ecr';
 import { ContainerImage } from 'aws-cdk-lib/aws-ecs';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
@@ -45,6 +46,70 @@ export interface TokenInjectableDockerBuilderProps {
    * @example 'arn:aws:secretsmanager:us-east-1:123456789012:secret:DockerLoginSecret'
    */
   readonly dockerLoginSecretArn?: string;
+
+  /**
+   * The VPC in which the CodeBuild project will be deployed.
+   * If provided, the CodeBuild project will be launched within the specified VPC.
+   * @default No VPC is attached, and the CodeBuild project will use public internet.
+   */
+  readonly vpc?: IVpc;
+
+  /**
+   * The security groups to attach to the CodeBuild project.
+   * These should define the network access rules for the CodeBuild project.
+   * @default No security groups are attached.
+   */
+  readonly securityGroups?: ISecurityGroup[];
+
+  /**
+   * The subnet selection to specify which subnets to use within the VPC.
+   * Allows the user to select private, public, or isolated subnets.
+   * @default All subnets in the VPC are used.
+   */
+  readonly subnetSelection?: SubnetSelection;
+
+  /**
+   * Custom commands to run during the install phase.
+   *
+   * **Example Usage:**
+   * ```typescript
+   * new TokenInjectableDockerBuilder(this, 'MyDockerBuilder', {
+   *   path: path.resolve(__dirname, '../app'),
+   *   installCommands: [
+   *     'echo "Updating package lists..."',
+   *     'apt-get update -y',
+   *     'echo "Installing required packages..."',
+   *     'apt-get install -y curl dnsutils',
+   *   ],
+   *   // ... other properties ...
+   * });
+   * ```
+   * *This example demonstrates how to install the `curl` and `dnsutils` packages during the install phase using `apt-get`, the package manager for Ubuntu-based CodeBuild environments.*
+   *
+   * @default - No additional install commands.
+   */
+  readonly installCommands?: string[];
+
+
+  /**
+   * Custom commands to run during the pre_build phase.
+   *
+   * **Example Usage:**
+   * ```typescript
+   * new TokenInjectableDockerBuilder(this, 'MyDockerBuilder', {
+   *   path: path.resolve(__dirname, '../app'),
+   *   preBuildCommands: [
+   *     'echo "Fetching configuration from private API..."',
+   *     'curl -o config.json https://api.example.com/config',
+   *   ],
+   *   // ... other properties ...
+   * });
+   * ```
+   * *In this example, the builder fetches a configuration file from a private API before starting the Docker build. This config file will be available in the same directory as your Dockerfile during CDK deployment.*
+   *
+   * @default - No additional pre-build commands.
+   */
+  readonly preBuildCommands?: string[];
 }
 
 /**
@@ -58,7 +123,16 @@ export class TokenInjectableDockerBuilder extends Construct {
   constructor(scope: Construct, id: string, props: TokenInjectableDockerBuilderProps) {
     super(scope, id);
 
-    const { path: sourcePath, buildArgs, dockerLoginSecretArn } = props;
+    const {
+      path: sourcePath,
+      buildArgs,
+      dockerLoginSecretArn,
+      vpc,
+      securityGroups,
+      subnetSelection,
+      installCommands,
+      preBuildCommands,
+    } = props;
 
     // Define a KMS key for ECR encryption
     const encryptionKey = new Key(this, 'EcrEncryptionKey', {
@@ -116,12 +190,27 @@ export class TokenInjectableDockerBuilder extends Construct {
       environmentVariables: {
         ECR_REPO_URI: { value: this.ecrRepository.repositoryUri },
         BUILD_ARGS: { value: buildArgsString },
+        // Include build arguments as environment variables if needed
+        ...(buildArgs &&
+          Object.fromEntries(
+            Object.entries(buildArgs).map(([key, value]) => [key, { value }]),
+          )),
       },
+      vpc,
+      securityGroups,
+      subnetSelection,
       buildSpec: BuildSpec.fromObject({
         version: '0.2',
         phases: {
+          install: {
+            commands: [
+              'echo "Beginning install phase..."',
+              ...(installCommands || []),
+            ],
+          },
           pre_build: {
             commands: [
+              ...(preBuildCommands || []),
               ...dockerLoginCommands,
               'echo "Retrieving AWS Account ID..."',
               'export ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)',
@@ -150,7 +239,11 @@ export class TokenInjectableDockerBuilder extends Construct {
 
     codeBuildProject.role!.addToPrincipalPolicy(
       new PolicyStatement({
-        actions: ['ecr:GetAuthorizationToken', 'ecr:GetDownloadUrlForLayer', 'ecr:BatchCheckLayerAvailability'],
+        actions: [
+          'ecr:GetAuthorizationToken',
+          'ecr:GetDownloadUrlForLayer',
+          'ecr:BatchCheckLayerAvailability',
+        ],
         resources: [this.ecrRepository.repositoryArn],
       }),
     );
@@ -181,6 +274,7 @@ export class TokenInjectableDockerBuilder extends Construct {
         resources: [codeBuildProject.projectArn], // Restrict to specific project
       }),
     );
+
     const isCompleteHandlerFunction = new Function(this, 'IsCompleteHandlerFunction', {
       runtime: Runtime.NODEJS_18_X,
       code: Code.fromAsset(path.resolve(__dirname, '../isComplete')),

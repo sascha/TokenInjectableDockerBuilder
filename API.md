@@ -146,6 +146,11 @@ const tokenInjectableDockerBuilderProps: TokenInjectableDockerBuilderProps = { .
 | <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilderProps.property.path">path</a></code> | <code>string</code> | The path to the directory containing the Dockerfile or source code. |
 | <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilderProps.property.buildArgs">buildArgs</a></code> | <code>{[ key: string ]: string}</code> | Build arguments to pass to the Docker build process. |
 | <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilderProps.property.dockerLoginSecretArn">dockerLoginSecretArn</a></code> | <code>string</code> | The ARN of the AWS Secrets Manager secret containing Docker login credentials. |
+| <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilderProps.property.installCommands">installCommands</a></code> | <code>string[]</code> | Custom commands to run during the install phase. |
+| <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilderProps.property.preBuildCommands">preBuildCommands</a></code> | <code>string[]</code> | Custom commands to run during the pre_build phase. |
+| <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilderProps.property.securityGroups">securityGroups</a></code> | <code>aws-cdk-lib.aws_ec2.ISecurityGroup[]</code> | The security groups to attach to the CodeBuild project. |
+| <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilderProps.property.subnetSelection">subnetSelection</a></code> | <code>aws-cdk-lib.aws_ec2.SubnetSelection</code> | The subnet selection to specify which subnets to use within the VPC. |
+| <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilderProps.property.vpc">vpc</a></code> | <code>aws-cdk-lib.aws_ec2.IVpc</code> | The VPC in which the CodeBuild project will be deployed. |
 
 ---
 
@@ -212,6 +217,105 @@ If not provided, the construct will skip Docker login during the build process.
 'arn:aws:secretsmanager:us-east-1:123456789012:secret:DockerLoginSecret'
 ```
 
+
+##### `installCommands`<sup>Optional</sup> <a name="installCommands" id="token-injectable-docker-builder.TokenInjectableDockerBuilderProps.property.installCommands"></a>
+
+```typescript
+public readonly installCommands: string[];
+```
+
+- *Type:* string[]
+- *Default:* No additional install commands.
+
+Custom commands to run during the install phase.
+
+**Example Usage:**
+```typescript
+new TokenInjectableDockerBuilder(this, 'MyDockerBuilder', {
+  path: path.resolve(__dirname, '../app'),
+  installCommands: [
+    'echo "Updating package lists..."',
+    'apt-get update -y',
+    'echo "Installing required packages..."',
+    'apt-get install -y curl dnsutils',
+  ],
+  // ... other properties ...
+});
+```
+*This example demonstrates how to install the `curl` and `dnsutils` packages during the install phase using `apt-get`, the package manager for Ubuntu-based CodeBuild environments.*
+
+---
+
+##### `preBuildCommands`<sup>Optional</sup> <a name="preBuildCommands" id="token-injectable-docker-builder.TokenInjectableDockerBuilderProps.property.preBuildCommands"></a>
+
+```typescript
+public readonly preBuildCommands: string[];
+```
+
+- *Type:* string[]
+- *Default:* No additional pre-build commands.
+
+Custom commands to run during the pre_build phase.
+
+**Example Usage:**
+```typescript
+new TokenInjectableDockerBuilder(this, 'MyDockerBuilder', {
+  path: path.resolve(__dirname, '../app'),
+  preBuildCommands: [
+    'echo "Fetching configuration from private API..."',
+    'curl -o config.json https://api.example.com/config',
+  ],
+  // ... other properties ...
+});
+```
+*In this example, the builder fetches a configuration file from a private API before starting the Docker build. This config file will be available in the same directory as your Dockerfile during CDK deployment.*
+
+---
+
+##### `securityGroups`<sup>Optional</sup> <a name="securityGroups" id="token-injectable-docker-builder.TokenInjectableDockerBuilderProps.property.securityGroups"></a>
+
+```typescript
+public readonly securityGroups: ISecurityGroup[];
+```
+
+- *Type:* aws-cdk-lib.aws_ec2.ISecurityGroup[]
+- *Default:* No security groups are attached.
+
+The security groups to attach to the CodeBuild project.
+
+These should define the network access rules for the CodeBuild project.
+
+---
+
+##### `subnetSelection`<sup>Optional</sup> <a name="subnetSelection" id="token-injectable-docker-builder.TokenInjectableDockerBuilderProps.property.subnetSelection"></a>
+
+```typescript
+public readonly subnetSelection: SubnetSelection;
+```
+
+- *Type:* aws-cdk-lib.aws_ec2.SubnetSelection
+- *Default:* All subnets in the VPC are used.
+
+The subnet selection to specify which subnets to use within the VPC.
+
+Allows the user to select private, public, or isolated subnets.
+
+---
+
+##### `vpc`<sup>Optional</sup> <a name="vpc" id="token-injectable-docker-builder.TokenInjectableDockerBuilderProps.property.vpc"></a>
+
+```typescript
+public readonly vpc: IVpc;
+```
+
+- *Type:* aws-cdk-lib.aws_ec2.IVpc
+- *Default:* No VPC is attached, and the CodeBuild project will use public internet.
+
+The VPC in which the CodeBuild project will be deployed.
+
+If provided, the CodeBuild project will be launched within the specified VPC.
+
+---
 
 
 
