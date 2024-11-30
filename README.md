@@ -1,6 +1,6 @@
 # TokenInjectableDockerBuilder
 
-The `TokenInjectableDockerBuilder` is a flexible AWS CDK construct that enables the usage of AWS CDK tokens in the building, pushing, and deployment of Docker images to Amazon Elastic Container Registry (ECR). It leverages AWS CodeBuild and Lambda custom resources. 
+The `TokenInjectableDockerBuilder` is a flexible AWS CDK construct that enables the usage of AWS CDK tokens in the building, pushing, and deployment of Docker images to Amazon Elastic Container Registry (ECR). It leverages AWS CodeBuild and Lambda custom resources.
 
 ---
 
@@ -8,7 +8,7 @@ The `TokenInjectableDockerBuilder` is a flexible AWS CDK construct that enables 
 
 AWS CDK already provides mechanisms for creating deployable assets using Docker, such as [DockerImageAsset](https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_ecr_assets.DockerImageAsset.html) and [DockerImageCode](https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_lambda.DockerImageCode.html), but these constructs are limited because they cannot accept CDK tokens as build-args. The `TokenInjectableDockerBuilder` allows injecting CDK tokens as build-time arguments into Docker-based assets, enabling more dynamic dependency relationships.
 
-For example, a Next.js frontend Docker image may require an API Gateway URL as an argument to create a reference from the UI to the associated API in a given deployment. With this construct, you can deploy the API Gateway first, then pass its URL as a build-time argument to the Next.js Docker image. As a result, your Next.js frontend can dynamically fetch data from the API Gateway without hardcoding the URL, or needing mutliple sepereate Stacks.
+For example, a Next.js frontend Docker image may require an API Gateway URL as an argument to create a reference from the UI to the associated API in a given deployment. With this construct, you can deploy the API Gateway first, then pass its URL as a build-time argument to the Next.js Docker image. As a result, your Next.js frontend can dynamically fetch data from the API Gateway without hardcoding the URL or needing multiple separate stacks.
 
 ---
 
@@ -56,16 +56,16 @@ pip install token-injectable-docker-builder
 
 #### Properties in `TokenInjectableDockerBuilderProps`
 
-| Property                 | Type                        | Required | Description                                                                                                                                                           |
-|--------------------------|-----------------------------|----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `path`                   | `string`                    | Yes      | The file path to the Dockerfile or source code directory.                                                                                                             |
-| `buildArgs`              | `{ [key: string]: string }` | No       | Build arguments to pass to the Docker build process. These are transformed into `--build-arg` flags. To use in Dockerfile, leverage the `ARG` keyword. For more details, please see the [official Docker docs](https://docs.docker.com/build/building/variables/).                                                                  |
-| `dockerLoginSecretArn`   | `string`                    | No       | ARN of an AWS Secrets Manager secret for Docker credentials. Skips login if not provided.                                                                              |
-| `vpc`                    | `IVpc`                      | No       | The VPC in which the CodeBuild project will be deployed. If provided, the CodeBuild project will be launched within the specified VPC.                                 |
-| `securityGroups`         | `ISecurityGroup[]`          | No       | The security groups to attach to the CodeBuild project. These should define the network access rules for the CodeBuild project.                                        |
-| `subnetSelection`        | `SubnetSelection`           | No       | The subnet selection to specify which subnets to use within the VPC. Allows the user to select private, public, or isolated subnets.                                   |
-| `installCommands`        | `string[]`                  | No       | Custom commands to run during the `install` phase of the CodeBuild build process. Will be executed before Docker image is built. Useful for installing necessary dependencies for running pre-build scripts.                                                                                   |
-| `preBuildCommands`       | `string[]`                  | No       | Custom commands to run during the `pre_build` phase of the CodeBuild build process. Will be executed before Docker image is built. Useful for running pre-build scripts, such as to fetch configs.                                                                                   |
+| Property                 | Type                        | Required | Description                                                                                                                                                                                                                                                                                     |
+|--------------------------|-----------------------------|----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `path`                   | `string`                    | Yes      | The file path to the Dockerfile or source code directory.                                                                                                                                                                                                                                       |
+| `buildArgs`              | `{ [key: string]: string }` | No       | Build arguments to pass to the Docker build process. These are transformed into `--build-arg` flags. To use in Dockerfile, leverage the `ARG` keyword. For more details, please see the [official Docker docs](https://docs.docker.com/build/building/variables/).                              |
+| `dockerLoginSecretArn`   | `string`                    | No       | ARN of an AWS Secrets Manager secret for Docker credentials. Skips login if not provided.                                                                                                                                                                                                        |
+| `vpc`                    | `IVpc`                      | No       | The VPC in which the CodeBuild project will be deployed. If provided, the CodeBuild project will be launched within the specified VPC.                                                                                                                                                           |
+| `securityGroups`         | `ISecurityGroup[]`          | No       | The security groups to attach to the CodeBuild project. These should define the network access rules for the CodeBuild project.                                                                                                                                                                  |
+| `subnetSelection`        | `SubnetSelection`           | No       | The subnet selection to specify which subnets to use within the VPC. Allows the user to select private, public, or isolated subnets.                                                                                                                                                             |
+| `installCommands`        | `string[]`                  | No       | Custom commands to run during the `install` phase of the CodeBuild build process. Will be executed before the Docker image is built. Useful for installing necessary dependencies for running pre-build scripts.                                                                                 |
+| `preBuildCommands`       | `string[]`                  | No       | Custom commands to run during the `pre_build` phase of the CodeBuild build process. Will be executed before the Docker image is built. Useful for running pre-build scripts, such as fetching configs.                                                                                           |
 
 ---
 
@@ -73,7 +73,7 @@ pip install token-injectable-docker-builder
 
 ### Simple Usage Example
 
-This example demonstrates the most basic usage of the `TokenInjectableDockerBuilder`, where you specify the path to your Docker context and provide simple build arguments.
+This example demonstrates the basic usage of the `TokenInjectableDockerBuilder`, where a Next.js frontend Docker image requires an API Gateway URL as a build argument to create a reference from the UI to the associated API in a given deployment.
 
 #### TypeScript/NPM Example
 
@@ -81,30 +81,40 @@ This example demonstrates the most basic usage of the `TokenInjectableDockerBuil
 import * as cdk from 'aws-cdk-lib';
 import { TokenInjectableDockerBuilder } from 'token-injectable-docker-builder';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
-import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as ec2 from 'aws-cdk-lib/aws-ec2';
+import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 
 export class SimpleStack extends cdk.Stack {
   constructor(scope: cdk.App, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
+    // Create your API Gateway
+    const api = new apigateway.RestApi(this, 'MyApiGateway', {
+      restApiName: 'MyService',
+    });
+
+    // Create the Docker builder
     const dockerBuilder = new TokenInjectableDockerBuilder(this, 'SimpleDockerBuilder', {
-      path: './docker', // Path to your Dockerfile or Docker context
+      path: './nextjs-app', // Path to your Next.js app Docker context
       buildArgs: {
-        ENV: 'production', // Simple build argument
+        API_URL: api.url, // Pass the API Gateway URL as a build argument
       },
     });
 
     // Use in ECS
-    new ecs.ContainerDefinition(this, 'SimpleContainer', {
-      image: dockerBuilder.containerImage,
-      // ... other container properties ...
+    const cluster = new ecs.Cluster(this, 'EcsCluster', {
+      vpc: new ec2.Vpc(this, 'Vpc'),
     });
 
-    // Use in Lambda
-    new lambda.Function(this, 'SimpleDockerLambdaFunction', {
-      runtime: lambda.Runtime.FROM_IMAGE,
-      code: dockerBuilder.dockerImageCode,
-      handler: lambda.Handler.FROM_IMAGE,
+    new ecs.FargateService(this, 'FargateService', {
+      cluster,
+      taskDefinition: new ecs.FargateTaskDefinition(this, 'TaskDef', {
+        cpu: 512,
+        memoryLimitMiB: 1024,
+      }).addContainer('Container', {
+        image: dockerBuilder.containerImage,
+        logging: ecs.LogDriver.awsLogs({ streamPrefix: 'MyApp' }),
+      }),
     });
   }
 }
@@ -115,7 +125,8 @@ export class SimpleStack extends cdk.Stack {
 ```python
 from aws_cdk import (
     aws_ecs as ecs,
-    aws_lambda as lambda_,
+    aws_ec2 as ec2,
+    aws_apigateway as apigateway,
     core as cdk,
 )
 from token_injectable_docker_builder import TokenInjectableDockerBuilder
@@ -125,24 +136,36 @@ class SimpleStack(cdk.Stack):
     def __init__(self, scope: cdk.App, id: str, **kwargs):
         super().__init__(scope, id, **kwargs)
 
+        # Create your API Gateway
+        api = apigateway.RestApi(self, "MyApiGateway",
+            rest_api_name="MyService",
+        )
+
+        # Create the Docker builder
         docker_builder = TokenInjectableDockerBuilder(self, "SimpleDockerBuilder",
-            path="./docker",  # Path to your Dockerfile or Docker context
+            path="./nextjs-app",  # Path to your Next.js app Docker context
             build_args={
-                "ENV": "production",  # Simple build argument
+                "API_URL": api.url,  # Pass the API Gateway URL as a build argument
             },
         )
 
         # Use in ECS
-        ecs.ContainerDefinition(self, "SimpleContainer",
-            image=docker_builder.container_image,
-            # ... other container properties ...
+        vpc = ec2.Vpc(self, "Vpc")
+        cluster = ecs.Cluster(self, "EcsCluster", vpc=vpc)
+
+        task_definition = ecs.FargateTaskDefinition(self, "TaskDef",
+            cpu=512,
+            memory_limit_mib=1024,
         )
 
-        # Use in Lambda
-        lambda_.Function(self, "SimpleDockerLambdaFunction",
-            runtime=lambda_.Runtime.FROM_IMAGE,
-            code=docker_builder.docker_image_code,
-            handler=lambda_.Handler.FROM_IMAGE
+        task_definition.add_container("Container",
+            image=docker_builder.container_image,
+            logging=ecs.LogDriver.aws_logs(stream_prefix="MyApp"),
+        )
+
+        ecs.FargateService(self, "FargateService",
+            cluster=cluster,
+            task_definition=task_definition,
         )
 ```
 
@@ -150,7 +173,7 @@ class SimpleStack(cdk.Stack):
 
 ### Advanced Usage Example
 
-This example demonstrates more advanced usage, including using CDK tokens as build arguments, specifying custom install and pre-build commands, and configuring VPC settings.
+Building on the previous example, this advanced usage demonstrates how to include additional configurations, such as fetching private API endpoints and configuration files during the build process.
 
 #### TypeScript/NPM Example
 
@@ -158,55 +181,61 @@ This example demonstrates more advanced usage, including using CDK tokens as bui
 import * as cdk from 'aws-cdk-lib';
 import { TokenInjectableDockerBuilder } from 'token-injectable-docker-builder';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
-import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
+import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 
-export class MyStack extends cdk.Stack {
+export class AdvancedStack extends cdk.Stack {
   constructor(scope: cdk.App, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    // Example VPC and security group (optional)
+    // Create your API Gateway
+    const api = new apigateway.RestApi(this, 'MyApiGateway', {
+      restApiName: 'MyService',
+    });
+
+    // VPC and Security Group for CodeBuild
     const vpc = new ec2.Vpc(this, 'MyVpc');
     const securityGroup = new ec2.SecurityGroup(this, 'MySecurityGroup', {
       vpc,
     });
 
-    // Example of using CDK tokens as build arguments
-    const myApiGateway = /* ... create or import your API Gateway ... */;
-
-    const dockerBuilder = new TokenInjectableDockerBuilder(this, 'MyDockerBuilder', {
-      path: './docker',
+    // Create the Docker builder with additional pre-build commands
+    const dockerBuilder = new TokenInjectableDockerBuilder(this, 'AdvancedDockerBuilder', {
+      path: './nextjs-app',
       buildArgs: {
-        API_URL: myApiGateway.url, // Using CDK token
-        ENV: 'production',
+        API_URL: api.url,
       },
-      dockerLoginSecretArn: 'arn:aws:secretsmanager:us-east-1:123456789012:secret:DockerLoginSecret',
       vpc,
       securityGroups: [securityGroup],
       subnetSelection: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
       installCommands: [
         'echo "Updating package lists..."',
         'apt-get update -y',
-        'echo "Installing required packages..."',
-        'apt-get install -y curl dnsutils',
+        'echo "Installing necessary packages..."',
+        'apt-get install -y curl',
       ],
       preBuildCommands: [
-        'echo "Fetching configuration from private API..."',
-        'curl -o config.json https://api.example.com/config',
+        'echo "Fetching private API configuration..."',
+        // Replace with your actual command to fetch configs
+        'curl -o config.json https://internal-api.example.com/config',
       ],
     });
 
-    // Use in ECS
-    new ecs.ContainerDefinition(this, 'MyContainer', {
-      image: dockerBuilder.containerImage,
-      // ... other container properties ...
-    });
+    // Ensure the CodeBuild project has access to the internal API endpoint
+    // You may need to adjust your VPC and security group settings accordingly
 
-    // Use in Lambda
-    new lambda.Function(this, 'DockerLambdaFunction', {
-      runtime: lambda.Runtime.FROM_IMAGE,
-      code: dockerBuilder.dockerImageCode,
-      handler: lambda.Handler.FROM_IMAGE,
+    // Use in ECS
+    const cluster = new ecs.Cluster(this, 'EcsCluster', { vpc });
+
+    new ecs.FargateService(this, 'FargateService', {
+      cluster,
+      taskDefinition: new ecs.FargateTaskDefinition(this, 'TaskDef', {
+        cpu: 512,
+        memoryLimitMiB: 1024,
+      }).addContainer('Container', {
+        image: dockerBuilder.containerImage,
+        logging: ecs.LogDriver.awsLogs({ streamPrefix: 'MyApp' }),
+      }),
     });
   }
 }
@@ -216,60 +245,76 @@ export class MyStack extends cdk.Stack {
 
 ```python
 from aws_cdk import (
-    aws_ec2 as ec2,
     aws_ecs as ecs,
-    aws_lambda as lambda_,
+    aws_ec2 as ec2,
+    aws_apigateway as apigateway,
     core as cdk,
 )
 from token_injectable_docker_builder import TokenInjectableDockerBuilder
 
-class MyStack(cdk.Stack):
+class AdvancedStack(cdk.Stack):
 
     def __init__(self, scope: cdk.App, id: str, **kwargs):
         super().__init__(scope, id, **kwargs)
 
-        # Example VPC and security group (optional)
+        # Create your API Gateway
+        api = apigateway.RestApi(self, "MyApiGateway",
+            rest_api_name="MyService",
+        )
+
+        # VPC and Security Group for CodeBuild
         vpc = ec2.Vpc(self, "MyVpc")
         security_group = ec2.SecurityGroup(self, "MySecurityGroup", vpc=vpc)
 
-        # Example of using CDK tokens as build arguments
-        my_api_gateway = # ... create or import your API Gateway ...
-
-        docker_builder = TokenInjectableDockerBuilder(self, "MyDockerBuilder",
-            path="./docker",
+        # Create the Docker builder with additional pre-build commands
+        docker_builder = TokenInjectableDockerBuilder(self, "AdvancedDockerBuilder",
+            path="./nextjs-app",
             build_args={
-                "API_URL": my_api_gateway.url,  # Using CDK token
-                "ENV": "production"
+                "API_URL": api.url,
             },
-            docker_login_secret_arn="arn:aws:secretsmanager:us-east-1:123456789012:secret:DockerLoginSecret",
             vpc=vpc,
             security_groups=[security_group],
             subnet_selection=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS),
             install_commands=[
                 'echo "Updating package lists..."',
                 'apt-get update -y',
-                'echo "Installing required packages..."',
-                'apt-get install -y curl dnsutils',
+                'echo "Installing necessary packages..."',
+                'apt-get install -y curl',
             ],
             pre_build_commands=[
-                'echo "Fetching configuration from private API..."',
-                'curl -o config.json https://api.example.com/config',
+                'echo "Fetching private API configuration..."',
+                # Replace with your actual command to fetch configs
+                'curl -o config.json https://internal-api.example.com/config',
             ],
         )
 
+        # Ensure the CodeBuild project has access to the internal API endpoint
+        # You may need to adjust your VPC and security group settings accordingly
+
         # Use in ECS
-        ecs.ContainerDefinition(self, "MyContainer",
-            image=docker_builder.container_image,
-            # ... other container properties ...
+        cluster = ecs.Cluster(self, "EcsCluster", vpc=vpc)
+
+        task_definition = ecs.FargateTaskDefinition(self, "TaskDef",
+            cpu=512,
+            memory_limit_mib=1024,
         )
 
-        # Use in Lambda
-        lambda_.Function(self, "DockerLambdaFunction",
-            runtime=lambda_.Runtime.FROM_IMAGE,
-            code=docker_builder.docker_image_code,
-            handler=lambda_.Handler.FROM_IMAGE
+        task_definition.add_container("Container",
+            image=docker_builder.container_image,
+            logging=ecs.LogDriver.aws_logs(stream_prefix="MyApp"),
+        )
+
+        ecs.FargateService(self, "FargateService",
+            cluster=cluster,
+            task_definition=task_definition,
         )
 ```
+
+In this advanced example:
+
+- **VPC Configuration**: The CodeBuild project is configured to run inside a VPC with specified security groups and subnet selection, allowing it to access internal resources such as a private API endpoint.
+- **Custom Install and Pre-Build Commands**: The `installCommands` and `preBuildCommands` properties are used to install necessary packages and fetch configuration files from a private API before building the Docker image.
+- **Access to Internal APIs**: By running inside a VPC and configuring the security groups appropriately, the CodeBuild project can access private endpoints not accessible over the public internet.
 
 ---
 
@@ -320,7 +365,7 @@ The construct automatically grants permissions for:
 1. **Build Errors**: Check the CodeBuild logs in CloudWatch Logs for detailed error messages.
 2. **Lambda Errors**: Check the `onEvent` and `isComplete` Lambda function logs in CloudWatch Logs.
 3. **Permissions**: Ensure IAM roles have the required permissions for CodeBuild, ECR, Secrets Manager, and KMS if applicable.
-4. **Network Access**: If the build requires network access (e.g., to download dependencies), ensure that the VPC configuration allows outbound internet access, or use a NAT gateway if in private subnets.
+4. **Network Access**: If the build requires network access (e.g., to download dependencies or access internal APIs), ensure that the VPC configuration allows necessary network connectivity, and adjust security group rules accordingly.
 
 ---
 
@@ -336,13 +381,13 @@ For issues or feature requests, please open an issue on [GitHub](https://github.
 
 ---
 
-# License
+## License
 
 This project is licensed under the terms of the MIT license.
 
 ---
 
-# Acknowledgements
+## Acknowledgements
 
 - Inspired by the need for more dynamic Docker asset management in AWS CDK.
 - Thanks to the AWS CDK community for their continuous support and contributions.
@@ -350,3 +395,5 @@ This project is licensed under the terms of the MIT license.
 ---
 
 Feel free to reach out if you have any questions or need further assistance!
+
+---
