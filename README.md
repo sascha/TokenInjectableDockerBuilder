@@ -1,6 +1,6 @@
 # TokenInjectableDockerBuilder
 
-The `TokenInjectableDockerBuilder` is a flexible AWS CDK construct that enables the usage of AWS CDK tokens in the building, pushing, and deployment of Docker images to Amazon Elastic Container Registry (ECR). It leverages AWS CodeBuild and Lambda custom resources.
+The `TokenInjectableDockerBuilder` is a flexible AWS CDK construct that enables the usage of AWS CDK tokens in the building, pushing, and deployment of Docker images to Amazon Elastic Container Registry (ECR). It leverages AWS CodeBuild and Lambda custom resources. 
 
 ---
 
@@ -8,7 +8,7 @@ The `TokenInjectableDockerBuilder` is a flexible AWS CDK construct that enables 
 
 AWS CDK already provides mechanisms for creating deployable assets using Docker, such as [DockerImageAsset](https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_ecr_assets.DockerImageAsset.html) and [DockerImageCode](https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_lambda.DockerImageCode.html), but these constructs are limited because they cannot accept CDK tokens as build-args. The `TokenInjectableDockerBuilder` allows injecting CDK tokens as build-time arguments into Docker-based assets, enabling more dynamic dependency relationships.
 
-For example, a Next.js frontend Docker image may require an API Gateway URL as an argument. With this construct, you can deploy the API Gateway first, then pass its URL as a build-time argument to the Next.js Docker image. As a result, your Next.js frontend can dynamically fetch data from the API Gateway without hardcoding the URL, or needing mutliple sepereate Stacks.
+For example, a Next.js frontend Docker image may require an API Gateway URL as an argument to create a reference from the UI to the associated API in a given deployment. With this construct, you can deploy the API Gateway first, then pass its URL as a build-time argument to the Next.js Docker image. As a result, your Next.js frontend can dynamically fetch data from the API Gateway without hardcoding the URL, or needing mutliple sepereate Stacks.
 
 ---
 
@@ -59,13 +59,13 @@ pip install token-injectable-docker-builder
 | Property                 | Type                        | Required | Description                                                                                                                                                           |
 |--------------------------|-----------------------------|----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `path`                   | `string`                    | Yes      | The file path to the Dockerfile or source code directory.                                                                                                             |
-| `buildArgs`              | `{ [key: string]: string }` | No       | Build arguments to pass to the Docker build process. These are transformed into `--build-arg` flags.                                                                  |
+| `buildArgs`              | `{ [key: string]: string }` | No       | Build arguments to pass to the Docker build process. These are transformed into `--build-arg` flags. To use in Dockerfile, leverage the `ARG` keyword. For more details, please see the [official Docker docs](https://docs.docker.com/build/building/variables/).                                                                  |
 | `dockerLoginSecretArn`   | `string`                    | No       | ARN of an AWS Secrets Manager secret for Docker credentials. Skips login if not provided.                                                                              |
 | `vpc`                    | `IVpc`                      | No       | The VPC in which the CodeBuild project will be deployed. If provided, the CodeBuild project will be launched within the specified VPC.                                 |
 | `securityGroups`         | `ISecurityGroup[]`          | No       | The security groups to attach to the CodeBuild project. These should define the network access rules for the CodeBuild project.                                        |
 | `subnetSelection`        | `SubnetSelection`           | No       | The subnet selection to specify which subnets to use within the VPC. Allows the user to select private, public, or isolated subnets.                                   |
-| `installCommands`        | `string[]`                  | No       | Custom commands to run during the `install` phase of the CodeBuild build process.                                                                                     |
-| `preBuildCommands`       | `string[]`                  | No       | Custom commands to run during the `pre_build` phase of the CodeBuild build process.                                                                                    |
+| `installCommands`        | `string[]`                  | No       | Custom commands to run during the `install` phase of the CodeBuild build process. Will be executed before Docker image is built. Useful for installing necessary dependencies for running pre-build scripts.                                                                                   |
+| `preBuildCommands`       | `string[]`                  | No       | Custom commands to run during the `pre_build` phase of the CodeBuild build process. Will be executed before Docker image is built. Useful for running pre-build scripts, such as to fetch configs.                                                                                   |
 
 ---
 
