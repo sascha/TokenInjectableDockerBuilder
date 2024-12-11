@@ -106,7 +106,7 @@ export class SimpleStack extends cdk.Stack {
       vpc: new ec2.Vpc(this, 'Vpc'),
     });
 
-    new ecs.FargateService(this, 'FargateService', {
+    const service = new ecs.FargateService(this, 'FargateService', {
       cluster,
       taskDefinition: new ecs.FargateTaskDefinition(this, 'TaskDef', {
         cpu: 512,
@@ -116,6 +116,8 @@ export class SimpleStack extends cdk.Stack {
         logging: ecs.LogDriver.awsLogs({ streamPrefix: 'MyApp' }),
       }),
     });
+
+    service.node.addDependency(dockerBuilder);
   }
 }
 ```
@@ -157,6 +159,8 @@ class SimpleStack(cdk.Stack):
             cpu=512,
             memory_limit_mib=1024,
         )
+
+        task_definition.node.add_dependency(docker_builder)
 
         task_definition.add_container("Container",
             image=docker_builder.container_image,
@@ -227,7 +231,7 @@ export class AdvancedStack extends cdk.Stack {
     // Use in ECS
     const cluster = new ecs.Cluster(this, 'EcsCluster', { vpc });
 
-    new ecs.FargateService(this, 'FargateService', {
+    const service = new ecs.FargateService(this, 'FargateService', {
       cluster,
       taskDefinition: new ecs.FargateTaskDefinition(this, 'TaskDef', {
         cpu: 512,
@@ -237,6 +241,8 @@ export class AdvancedStack extends cdk.Stack {
         logging: ecs.LogDriver.awsLogs({ streamPrefix: 'MyApp' }),
       }),
     });
+
+    service.node.addDependency(dockerBuilder);
   }
 }
 ```
@@ -298,6 +304,8 @@ class AdvancedStack(cdk.Stack):
             cpu=512,
             memory_limit_mib=1024,
         )
+
+        task_definition.node.add_dependency(docker_builder)
 
         task_definition.add_container("Container",
             image=docker_builder.container_image,
