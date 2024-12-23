@@ -4,7 +4,7 @@
 
 ### TokenInjectableDockerBuilder <a name="TokenInjectableDockerBuilder" id="token-injectable-docker-builder.TokenInjectableDockerBuilder"></a>
 
-A CDK construct to build and push Docker images to an ECR repository using CodeBuild and Lambda custom resources.
+A CDK construct to build and push Docker images to an ECR repository using CodeBuild and Lambda custom resources, retrieving the final image digest (SHA) and using that exact digest for ECS or Lambda references.
 
 #### Initializers <a name="Initializers" id="token-injectable-docker-builder.TokenInjectableDockerBuilder.Initializer"></a>
 
@@ -87,8 +87,8 @@ Any object.
 | **Name** | **Type** | **Description** |
 | --- | --- | --- |
 | <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilder.property.node">node</a></code> | <code>constructs.Node</code> | The tree node. |
-| <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilder.property.containerImage">containerImage</a></code> | <code>aws-cdk-lib.aws_ecs.ContainerImage</code> | *No description.* |
-| <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilder.property.dockerImageCode">dockerImageCode</a></code> | <code>aws-cdk-lib.aws_lambda.DockerImageCode</code> | *No description.* |
+| <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilder.property.containerImage">containerImage</a></code> | <code>aws-cdk-lib.aws_ecs.ContainerImage</code> | An ECS-compatible ContainerImage referencing the *exact* SHA digest of the built Docker image. |
+| <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilder.property.dockerImageCode">dockerImageCode</a></code> | <code>aws-cdk-lib.aws_lambda.DockerImageCode</code> | A Lambda-compatible DockerImageCode referencing the *exact* SHA digest of the built Docker image. |
 
 ---
 
@@ -112,6 +112,8 @@ public readonly containerImage: ContainerImage;
 
 - *Type:* aws-cdk-lib.aws_ecs.ContainerImage
 
+An ECS-compatible ContainerImage referencing the *exact* SHA digest of the built Docker image.
+
 ---
 
 ##### `dockerImageCode`<sup>Required</sup> <a name="dockerImageCode" id="token-injectable-docker-builder.TokenInjectableDockerBuilder.property.dockerImageCode"></a>
@@ -121,6 +123,8 @@ public readonly dockerImageCode: DockerImageCode;
 ```
 
 - *Type:* aws-cdk-lib.aws_lambda.DockerImageCode
+
+A Lambda-compatible DockerImageCode referencing the *exact* SHA digest of the built Docker image.
 
 ---
 
@@ -207,7 +211,8 @@ This secret should store a JSON object with the following structure:
   "password": "my-docker-password"
 }
 ```
-If not provided, the construct will skip Docker login during the build process.
+If not provided (or not needed), the construct will skip Docker Hub login.
+NOTE: The secret must be in the same region as the stack.
 
 ---
 
@@ -242,7 +247,6 @@ new TokenInjectableDockerBuilder(this, 'MyDockerBuilder', {
   // ... other properties ...
 });
 ```
-*This example demonstrates how to install the `curl` and `dnsutils` packages during the install phase using `apt-get`, the package manager for Ubuntu-based CodeBuild environments.*
 
 ---
 
@@ -268,7 +272,6 @@ new TokenInjectableDockerBuilder(this, 'MyDockerBuilder', {
   // ... other properties ...
 });
 ```
-*In this example, the builder fetches a configuration file from a private API before starting the Docker build. This config file will be available in the same directory as your Dockerfile during CDK deployment.*
 
 ---
 

@@ -20,7 +20,7 @@ new TokenInjectableDockerBuilder(stack, 'PublicBuilder', {
     SAMPLE_ARG_5: 'SAMPLE_VALUE_5',
     SAMPLE_ARG_6: 'SAMPLE_VALUE_6',
   },
-  dockerLoginSecretArn: 'arn:aws:secretsmanager:us-east-1:281318412783:secret:DockerLogin-jR8U8w',
+  dockerLoginSecretArn: 'arn:aws:secretsmanager:us-west-1:281318412783:secret:DockerLogin-k04Usw',
 });
 
 // The TokenInjectableDockerBuilder construct can be used to build Docker images in public internet without docker login scenario.
@@ -115,24 +115,27 @@ const testConfigResource = privateApi.root.addResource('test-config');
 testConfigResource.addMethod('GET');
 
 // TokenInjectableDockerBuilder: Fetch configuration from the private API
-new TokenInjectableDockerBuilder(stack, 'PrivateBuilder', {
-  path: path.resolve(__dirname, '../test-docker/private-subnet'),
-  buildArgs: {
-    API_URL: privateApi.urlForPath('/test-config'),
-  },
-  vpc,
-  securityGroups: [apiSecurityGroup],
-  subnetSelection: {
-    subnetType: SubnetType.PRIVATE_WITH_EGRESS,
-  },
-  installCommands: [
-    'echo "Updating package lists..."',
-    'apt-get update -y',
-    'echo "Installing required packages..."',
-    'apt-get install -y curl dnsutils',
-  ],
-  preBuildCommands: [
-    'echo "Fetching configuration file..."',
-    'curl -o config.json $API_URL',
-  ],
-});
+// const privateBuilder = new TokenInjectableDockerBuilder(stack, 'PrivateBuilder', {
+//   path: path.resolve(__dirname, '../test-docker/private-subnet'),
+//   buildArgs: {
+//     API_URL: privateApi.urlForPath('/test-config'),
+//   },
+//   vpc,
+//   securityGroups: [apiSecurityGroup],
+//   subnetSelection: {
+//     subnetType: SubnetType.PRIVATE_WITH_EGRESS,
+//   },
+//   installCommands: [
+//     'echo "Updating package lists..."',
+//     'apt-get update -y',
+//     'echo "Installing required packages..."',
+//     'apt-get install -y curl dnsutils',
+//   ],
+//   preBuildCommands: [
+//     'echo "Fetching configuration file..."',
+//     'curl -o config.json $API_URL',
+//   ],
+// });
+
+// privateBuilder.node.addDependency(privateApi);
+// privateBuilder.node.addDependency(testConfigResource);
