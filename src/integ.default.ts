@@ -1,16 +1,15 @@
 import * as path from 'path';
 import * as cdk from 'aws-cdk-lib';
-import { RestApi, EndpointType, LambdaIntegration } from 'aws-cdk-lib/aws-apigateway';
-import { Vpc, SubnetType, SecurityGroup, Peer, Port, InterfaceVpcEndpointAwsService } from 'aws-cdk-lib/aws-ec2';
-import { PolicyDocument, PolicyStatement, Effect, AnyPrincipal } from 'aws-cdk-lib/aws-iam';
-import { Runtime, Code, Function } from 'aws-cdk-lib/aws-lambda';
+import { DockerImageFunction } from 'aws-cdk-lib/aws-lambda';
 import { TokenInjectableDockerBuilder } from './index';
 
 const app = new cdk.App();
 const stack = new cdk.Stack(app, 'IntegTestingStack');
 
-// The TokenInjectableDockerBuilder construct can be used to build Docker images in public internet and docker login scenario.
-new TokenInjectableDockerBuilder(stack, 'PublicBuilder', {
+// -------------------------------------------------------------------------------------
+// 1) PublicBuilder with Docker Hub Login
+// -------------------------------------------------------------------------------------
+const publicBuilder = new TokenInjectableDockerBuilder(stack, 'PublicBuilder', {
   path: path.resolve(__dirname, '../test-docker/public-internet'),
   buildArgs: {
     SAMPLE_ARG_1: 'SAMPLE_VALUE_1',
@@ -23,8 +22,21 @@ new TokenInjectableDockerBuilder(stack, 'PublicBuilder', {
   dockerLoginSecretArn: 'arn:aws:secretsmanager:us-west-1:281318412783:secret:DockerLogin-k04Usw',
 });
 
-// The TokenInjectableDockerBuilder construct can be used to build Docker images in public internet without docker login scenario.
-new TokenInjectableDockerBuilder(stack, 'PublicBuilderNoDockerLogin', {
+// Create a test Lambda that uses the publicBuilder's Docker image
+const publicBuilderTestLambda = new DockerImageFunction(stack, 'PublicBuilderTestLambda', {
+  code: publicBuilder.dockerImageCode,
+  // Minimal handler example. The Docker container can have any logic you want.
+  environment: {
+    TEST_ENV_VAR: 'HelloFromPublicBuilder',
+  },
+});
+
+publicBuilderTestLambda.node.addDependency(publicBuilder);
+
+// -------------------------------------------------------------------------------------
+// 2) PublicBuilderNoDockerLogin
+// -------------------------------------------------------------------------------------
+const publicBuilderNoLogin = new TokenInjectableDockerBuilder(stack, 'PublicBuilderNoDockerLogin', {
   path: path.resolve(__dirname, '../test-docker/public-internet'),
   buildArgs: {
     SAMPLE_ARG_1: 'SAMPLE_VALUE_1',
@@ -36,85 +48,81 @@ new TokenInjectableDockerBuilder(stack, 'PublicBuilderNoDockerLogin', {
   },
 });
 
-// The TokenInjectableDockerBuilder construct can be used to build Docker images in private subnet without docker login scenario.
-// Create a VPC with private and public subnets
-const vpc = new Vpc(stack, 'TestVPC', {
-  maxAzs: 2,
-  subnetConfiguration: [
-    {
-      subnetType: SubnetType.PUBLIC,
-      name: 'PublicSubnet',
-    },
-    {
-      subnetType: SubnetType.PRIVATE_WITH_EGRESS,
-      name: 'PrivateSubnet',
-    },
-  ],
-});
-
-// Create a security group for the private API Gateway and CodeBuild
-const apiSecurityGroup = new SecurityGroup(stack, 'ApiSecurityGroup', {
-  vpc,
-  allowAllOutbound: true,
-});
-
-// Allow inbound HTTPS traffic from the VPC (for the VPC endpoint)
-apiSecurityGroup.addIngressRule(Peer.anyIpv4(), Port.tcp(443), 'Allow HTTPS traffic');
-
-// Create a VPC endpoint for API Gateway
-const apiGatewayEndpoint = vpc.addInterfaceEndpoint('ApiGatewayVpcEndpoint', {
-  service: InterfaceVpcEndpointAwsService.APIGATEWAY,
-  subnets: {
-    subnetType: SubnetType.PRIVATE_WITH_EGRESS, // Use private subnets
+const publicNoLoginTestLambda = new DockerImageFunction(stack, 'PublicNoLoginTestLambda', {
+  code: publicBuilderNoLogin.dockerImageCode,
+  environment: {
+    TEST_ENV_VAR: 'HelloFromNoLoginBuilder',
   },
-  securityGroups: [apiSecurityGroup], // Attach the security group
-  privateDnsEnabled: true, // Enable private DNS
 });
 
-// Lambda function to provide test configurations
-const testConfigLambda = new Function(stack, 'TestConfigLambda', {
-  runtime: Runtime.NODEJS_18_X,
-  handler: 'index.handler',
-  code: Code.fromInline(`
-    exports.handler = async (event) => {
-      return {
-        statusCode: 200,
-        body: JSON.stringify({
-          SAMPLE_CONFIG: "This is a test configuration",
-        }),
-      };
-    };
-  `),
-  vpc,
-  securityGroups: [apiSecurityGroup],
-});
+publicNoLoginTestLambda.node.addDependency(publicBuilderNoLogin);
 
-// Update the API Gateway resource policy
-const privateApi = new RestApi(stack, 'PrivateApi', {
-  endpointTypes: [EndpointType.PRIVATE],
-  defaultIntegration: new LambdaIntegration(testConfigLambda),
-  policy: new PolicyDocument({
-    statements: [
-      new PolicyStatement({
-        effect: Effect.ALLOW,
-        principals: [new AnyPrincipal()],
-        actions: ['execute-api:Invoke'],
-        resources: ['execute-api:/*'],
-        conditions: {
-          StringEquals: {
-            'aws:SourceVpce': apiGatewayEndpoint.vpcEndpointId,
-          },
-        },
-      }),
-    ],
-  }),
-});
+// // -------------------------------------------------------------------------------------
+// // 3) Create a simple VPC + Private API to test the "private" scenario
+// // -------------------------------------------------------------------------------------
+// const vpc = new Vpc(stack, 'TestVPC', {
+//   maxAzs: 2,
+//   subnetConfiguration: [
+//     { subnetType: SubnetType.PUBLIC, name: 'PublicSubnet' },
+//     { subnetType: SubnetType.PRIVATE_WITH_EGRESS, name: 'PrivateSubnet' },
+//   ],
+// });
 
-// Add a resource and method to the private API Gateway
-const testConfigResource = privateApi.root.addResource('test-config');
-testConfigResource.addMethod('GET');
+// const apiSecurityGroup = new SecurityGroup(stack, 'ApiSecurityGroup', {
+//   vpc,
+//   allowAllOutbound: true,
+// });
+// apiSecurityGroup.addIngressRule(Peer.anyIpv4(), Port.tcp(443), 'Allow HTTPS traffic');
 
-// TokenInjectableDockerBuilder: Fetch configuration from the private API
+// // Private Endpoint for API Gateway
+// const apiGatewayEndpoint = vpc.addInterfaceEndpoint('ApiGatewayVpcEndpoint', {
+//   service: InterfaceVpcEndpointAwsService.APIGATEWAY,
+//   subnets: { subnetType: SubnetType.PRIVATE_WITH_EGRESS },
+//   securityGroups: [apiSecurityGroup],
+//   privateDnsEnabled: true,
+// });
+
+// // A simple Lambda that returns a JSON object
+// const testConfigLambda = new Function(stack, 'TestConfigLambda', {
+//   runtime: Runtime.NODEJS_18_X,
+//   handler: 'index.handler',
+//   code: Code.fromInline(`
+//     exports.handler = async () => ({
+//       statusCode: 200,
+//       body: JSON.stringify({ SAMPLE_CONFIG: "This is a test configuration" }),
+//     });
+//   `),
+//   vpc,
+//   securityGroups: [apiSecurityGroup],
+// });
+
+// // A Private API with a resource "/test-config" -> testConfigLambda
+// const privateApi = new RestApi(stack, 'PrivateApi', {
+//   endpointTypes: [EndpointType.PRIVATE],
+//   defaultIntegration: new LambdaIntegration(testConfigLambda),
+//   policy: new PolicyDocument({
+//     statements: [
+//       new PolicyStatement({
+//         effect: Effect.ALLOW,
+//         principals: [new AnyPrincipal()],
+//         actions: ['execute-api:Invoke'],
+//         resources: ['execute-api:/*'],
+//         conditions: {
+//           StringEquals: { 'aws:SourceVpce': apiGatewayEndpoint.vpcEndpointId },
+//         },
+//       }),
+//     ],
+//   }),
+// });
+
+// Create a resource + GET method for test-config
+// const testConfigResource = privateApi.root.addResource('test-config');
+// testConfigResource.addMethod('GET');
+
+// -------------------------------------------------------------------------------------
+// 4) (Optional) Use a private builder that fetches the /test-config data
+//    Uncomment to see a private-subnet CodeBuild scenario that curls from the private API
+// -------------------------------------------------------------------------------------
 // const privateBuilder = new TokenInjectableDockerBuilder(stack, 'PrivateBuilder', {
 //   path: path.resolve(__dirname, '../test-docker/private-subnet'),
 //   buildArgs: {
@@ -136,6 +144,27 @@ testConfigResource.addMethod('GET');
 //     'curl -o config.json $API_URL',
 //   ],
 // });
-
 // privateBuilder.node.addDependency(privateApi);
 // privateBuilder.node.addDependency(testConfigResource);
+
+// A test Lambda referencing the PrivateBuilder's Docker image, if uncommented above
+// const privateBuilderTestLambda = new DockerImageFunction(stack, 'PrivateBuilderTestLambda', {
+//   code: privateBuilder.dockerImageCode,
+//   environment: {
+//     TEST_ENV_VAR: 'HelloFromPrivateBuilder',
+//   },
+// });
+
+// // Optionally add a resource to the PrivateApi for that private builder's Lambda
+// // const privateBuilderResource = privateApi.root.addResource('private-builder-test');
+// // privateBuilderResource.addMethod('GET', new LambdaIntegration(privateBuilderTestLambda));
+
+// // -------------------------------------------------------------------------------------
+// // 5) Expose Lambdas for "publicBuilder" & "publicBuilderNoLogin" as new resources
+// //    on the PrivateApi (for demonstration). In reality, you might use a public API or direct invocation.
+// // -------------------------------------------------------------------------------------
+// const publicBuilderResource = privateApi.root.addResource('public-builder-test');
+// publicBuilderResource.addMethod('GET', new LambdaIntegration(publicBuilderTestLambda));
+
+// const publicNoLoginResource = privateApi.root.addResource('public-builder-no-login-test');
+// publicNoLoginResource.addMethod('GET', new LambdaIntegration(publicNoLoginTestLambda));

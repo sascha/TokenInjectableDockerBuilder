@@ -30,7 +30,9 @@
     "watch": "npx projen watch",
     "projen": "npx projen",
     "local-deploy": "cdk deploy --app \"npx ts-node src/integ.default.ts\"",
-    "local-destroy": "cdk destroy --app \"npx ts-node src/integ.default.ts\""
+    "local-deploy-no-rollback": "cdk deploy --no-rollback --app \"npx ts-node src/integ.default.ts\"",
+    "local-destroy": "cdk destroy --app \"npx ts-node src/integ.default.ts\"",
+    "local-synth": "cdk synth --app \"npx ts-node src/integ.default.ts\""
   },
   "author": {
     "name": "AlexTech314",
@@ -43,7 +45,7 @@
     "@types/node": "^22.10.2",
     "@typescript-eslint/eslint-plugin": "^8",
     "@typescript-eslint/parser": "^8",
-    "aws-cdk-lib": "2.166.0",
+    "aws-cdk-lib": "2.173.2",
     "commit-and-tag-version": "^12",
     "constructs": "10.0.5",
     "eslint": "^9",
@@ -62,7 +64,7 @@
     "typescript": "^5.7.2"
   },
   "peerDependencies": {
-    "aws-cdk-lib": "^2.166.0",
+    "aws-cdk-lib": "^2.173.2",
     "constructs": "^10.0.5"
   },
   "keywords": [

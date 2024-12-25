@@ -4,7 +4,7 @@
 
 ### TokenInjectableDockerBuilder <a name="TokenInjectableDockerBuilder" id="token-injectable-docker-builder.TokenInjectableDockerBuilder"></a>
 
-A CDK construct to build and push Docker images to an ECR repository using CodeBuild and Lambda custom resources, retrieving the final image digest (SHA) and using that exact digest for ECS or Lambda references.
+A CDK construct to build and push Docker images to an ECR repository using CodeBuild and Lambda custom resources, **then** retrieve the final image tag so that ECS/Lambda references use the exact digest.
 
 #### Initializers <a name="Initializers" id="token-injectable-docker-builder.TokenInjectableDockerBuilder.Initializer"></a>
 
@@ -16,9 +16,9 @@ new TokenInjectableDockerBuilder(scope: Construct, id: string, props: TokenInjec
 
 | **Name** | **Type** | **Description** |
 | --- | --- | --- |
-| <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilder.Initializer.parameter.scope">scope</a></code> | <code>constructs.Construct</code> | *No description.* |
-| <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilder.Initializer.parameter.id">id</a></code> | <code>string</code> | *No description.* |
-| <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilder.Initializer.parameter.props">props</a></code> | <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilderProps">TokenInjectableDockerBuilderProps</a></code> | *No description.* |
+| <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilder.Initializer.parameter.scope">scope</a></code> | <code>constructs.Construct</code> | The scope in which to define this construct. |
+| <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilder.Initializer.parameter.id">id</a></code> | <code>string</code> | The scoped construct ID. |
+| <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilder.Initializer.parameter.props">props</a></code> | <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilderProps">TokenInjectableDockerBuilderProps</a></code> | Configuration for building and pushing the Docker image. |
 
 ---
 
@@ -26,17 +26,23 @@ new TokenInjectableDockerBuilder(scope: Construct, id: string, props: TokenInjec
 
 - *Type:* constructs.Construct
 
+The scope in which to define this construct.
+
 ---
 
 ##### `id`<sup>Required</sup> <a name="id" id="token-injectable-docker-builder.TokenInjectableDockerBuilder.Initializer.parameter.id"></a>
 
 - *Type:* string
 
+The scoped construct ID.
+
 ---
 
 ##### `props`<sup>Required</sup> <a name="props" id="token-injectable-docker-builder.TokenInjectableDockerBuilder.Initializer.parameter.props"></a>
 
 - *Type:* <a href="#token-injectable-docker-builder.TokenInjectableDockerBuilderProps">TokenInjectableDockerBuilderProps</a>
+
+Configuration for building and pushing the Docker image.
 
 ---
 
@@ -87,8 +93,8 @@ Any object.
 | **Name** | **Type** | **Description** |
 | --- | --- | --- |
 | <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilder.property.node">node</a></code> | <code>constructs.Node</code> | The tree node. |
-| <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilder.property.containerImage">containerImage</a></code> | <code>aws-cdk-lib.aws_ecs.ContainerImage</code> | An ECS-compatible ContainerImage referencing the *exact* SHA digest of the built Docker image. |
-| <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilder.property.dockerImageCode">dockerImageCode</a></code> | <code>aws-cdk-lib.aws_lambda.DockerImageCode</code> | A Lambda-compatible DockerImageCode referencing the *exact* SHA digest of the built Docker image. |
+| <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilder.property.containerImage">containerImage</a></code> | <code>aws-cdk-lib.aws_ecs.ContainerImage</code> | An ECS-compatible container image referencing the tag of the built Docker image. |
+| <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilder.property.dockerImageCode">dockerImageCode</a></code> | <code>aws-cdk-lib.aws_lambda.DockerImageCode</code> | A Lambda-compatible DockerImageCode referencing the the tag of the built Docker image. |
 
 ---
 
@@ -112,7 +118,7 @@ public readonly containerImage: ContainerImage;
 
 - *Type:* aws-cdk-lib.aws_ecs.ContainerImage
 
-An ECS-compatible ContainerImage referencing the *exact* SHA digest of the built Docker image.
+An ECS-compatible container image referencing the tag of the built Docker image.
 
 ---
 
@@ -124,7 +130,7 @@ public readonly dockerImageCode: DockerImageCode;
 
 - *Type:* aws-cdk-lib.aws_lambda.DockerImageCode
 
-A Lambda-compatible DockerImageCode referencing the *exact* SHA digest of the built Docker image.
+A Lambda-compatible DockerImageCode referencing the the tag of the built Docker image.
 
 ---
 
@@ -150,8 +156,8 @@ const tokenInjectableDockerBuilderProps: TokenInjectableDockerBuilderProps = { .
 | <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilderProps.property.path">path</a></code> | <code>string</code> | The path to the directory containing the Dockerfile or source code. |
 | <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilderProps.property.buildArgs">buildArgs</a></code> | <code>{[ key: string ]: string}</code> | Build arguments to pass to the Docker build process. |
 | <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilderProps.property.dockerLoginSecretArn">dockerLoginSecretArn</a></code> | <code>string</code> | The ARN of the AWS Secrets Manager secret containing Docker login credentials. |
-| <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilderProps.property.installCommands">installCommands</a></code> | <code>string[]</code> | Custom commands to run during the install phase. |
-| <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilderProps.property.preBuildCommands">preBuildCommands</a></code> | <code>string[]</code> | Custom commands to run during the pre_build phase. |
+| <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilderProps.property.installCommands">installCommands</a></code> | <code>string[]</code> | Custom commands to run during the install phase of CodeBuild. |
+| <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilderProps.property.preBuildCommands">preBuildCommands</a></code> | <code>string[]</code> | Custom commands to run during the pre_build phase of CodeBuild. |
 | <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilderProps.property.securityGroups">securityGroups</a></code> | <code>aws-cdk-lib.aws_ec2.ISecurityGroup[]</code> | The security groups to attach to the CodeBuild project. |
 | <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilderProps.property.subnetSelection">subnetSelection</a></code> | <code>aws-cdk-lib.aws_ec2.SubnetSelection</code> | The subnet selection to specify which subnets to use within the VPC. |
 | <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilderProps.property.vpc">vpc</a></code> | <code>aws-cdk-lib.aws_ec2.IVpc</code> | The VPC in which the CodeBuild project will be deployed. |
@@ -180,7 +186,7 @@ public readonly buildArgs: {[ key: string ]: string};
 
 Build arguments to pass to the Docker build process.
 
-These are transformed into `--build-arg` flags.
+These are transformed into `--build-arg KEY=VALUE` flags.
 
 ---
 
@@ -212,7 +218,8 @@ This secret should store a JSON object with the following structure:
 }
 ```
 If not provided (or not needed), the construct will skip Docker Hub login.
-NOTE: The secret must be in the same region as the stack.
+
+**Note**: The secret must be in the same region as the stack.
 
 ---
 
@@ -232,20 +239,16 @@ public readonly installCommands: string[];
 - *Type:* string[]
 - *Default:* No additional install commands.
 
-Custom commands to run during the install phase.
+Custom commands to run during the install phase of CodeBuild.
 
-**Example Usage:**
-```typescript
-new TokenInjectableDockerBuilder(this, 'MyDockerBuilder', {
-  path: path.resolve(__dirname, '../app'),
-  installCommands: [
-    'echo "Updating package lists..."',
-    'apt-get update -y',
-    'echo "Installing required packages..."',
-    'apt-get install -y curl dnsutils',
-  ],
-  // ... other properties ...
-});
+**Example**:
+```ts
+installCommands: [
+  'echo "Updating package lists..."',
+  'apt-get update -y',
+  'echo "Installing required packages..."',
+  'apt-get install -y curl dnsutils',
+],
 ```
 
 ---
@@ -259,18 +262,14 @@ public readonly preBuildCommands: string[];
 - *Type:* string[]
 - *Default:* No additional pre-build commands.
 
-Custom commands to run during the pre_build phase.
+Custom commands to run during the pre_build phase of CodeBuild.
 
-**Example Usage:**
-```typescript
-new TokenInjectableDockerBuilder(this, 'MyDockerBuilder', {
-  path: path.resolve(__dirname, '../app'),
-  preBuildCommands: [
-    'echo "Fetching configuration from private API..."',
-    'curl -o config.json https://api.example.com/config',
-  ],
-  // ... other properties ...
-});
+**Example**:
+```ts
+preBuildCommands: [
+  'echo "Fetching configuration from private API..."',
+  'curl -o config.json https://api.example.com/config',
+],
 ```
 
 ---
@@ -286,7 +285,7 @@ public readonly securityGroups: ISecurityGroup[];
 
 The security groups to attach to the CodeBuild project.
 
-These should define the network access rules for the CodeBuild project.
+These define the network access rules for the CodeBuild project.
 
 ---
 

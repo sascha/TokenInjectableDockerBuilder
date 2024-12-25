@@ -5,7 +5,7 @@ const project = new awscdk.AwsCdkConstructLibrary({
   author: 'AlexTech314',
   authorAddress: 'alest314@gmail.com',
   majorVersion: 1,
-  cdkVersion: '2.166.0',
+  cdkVersion: '2.173.2',
   defaultReleaseBranch: 'main',
   packageManager: NodePackageManager.NPM,
   jsiiVersion: '~5.5.0',
@@ -56,7 +56,9 @@ project.npmignore!.include('isComplete/*.js', 'onEvent/*.js');
 
 project.addScripts({
   'local-deploy': 'cdk deploy --app "npx ts-node src/integ.default.ts"',
+  'local-deploy-no-rollback': 'cdk deploy --no-rollback --app "npx ts-node src/integ.default.ts"',
   'local-destroy': 'cdk destroy --app "npx ts-node src/integ.default.ts"',
+  'local-synth': 'cdk synth --app "npx ts-node src/integ.default.ts"',
 });
 
 project.synth();

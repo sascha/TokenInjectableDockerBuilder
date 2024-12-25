@@ -1,97 +1,120 @@
-const { CodeBuildClient, ListBuildsForProjectCommand, BatchGetBuildsCommand } = require('@aws-sdk/client-codebuild');
-const { CloudWatchLogsClient, GetLogEventsCommand } = require('@aws-sdk/client-cloudwatch-logs');
+const {
+    CodeBuildClient,
+    ListBuildsForProjectCommand,
+    BatchGetBuildsCommand,
+} = require('@aws-sdk/client-codebuild');
+const {
+    CloudWatchLogsClient,
+    GetLogEventsCommand,
+} = require('@aws-sdk/client-cloudwatch-logs');
 
-exports.handler = async (event, context) => {
-    console.log('isCompleteHandler Event:', JSON.stringify(event, null, 2));
+exports.handler = async (event) => {
+    console.log('--- isComplete Handler Invoked ---');
+    console.log('AWS_REGION:', process.env.AWS_REGION);
+    console.log('Event:', JSON.stringify(event, null, 2));
 
-    // Initialize AWS SDK v3 clients
-    const codebuildClient = new CodeBuildClient({ region: process.env.AWS_REGION });
-    const cloudwatchlogsClient = new CloudWatchLogsClient({ region: process.env.AWS_REGION });
+    const region = process.env.AWS_REGION;
+    const codebuildClient = new CodeBuildClient({ region });
+    const logsClient = new CloudWatchLogsClient({ region });
 
     try {
-        const projectName = event.ResourceProperties.ProjectName;
+        const projectName = event.ResourceProperties?.ProjectName;
+        console.log('ProjectName from ResourceProperties:', projectName);
 
         if (!projectName) {
-            throw new Error('ProjectName is required in ResourceProperties');
+            throw new Error('Missing ProjectName in ResourceProperties');
         }
 
-        console.log(`Checking status for CodeBuild project: ${projectName}`);
+        // Handle Delete requests gracefully
+        if (event.RequestType === 'Delete') {
+            console.log('Delete request detected. Marking resource as complete.');
+            return { IsComplete: true };
+        }
 
-        // Retrieve the latest build for the given project
-        const listBuildsCommand = new ListBuildsForProjectCommand({
-            projectName: projectName,
-            sortOrder: 'DESCENDING',
-            maxResults: 1,
-        });
+        // 1) Retrieve the latest build ID for this project
+        console.log('Querying CodeBuild for the most recent build...');
+        const listResp = await codebuildClient.send(
+            new ListBuildsForProjectCommand({
+                projectName,
+                sortOrder: 'DESCENDING',
+                maxResults: 1,
+            })
+        );
+        console.log('ListBuildsForProjectCommand response:', JSON.stringify(listResp, null, 2));
 
-        const listBuildsResp = await codebuildClient.send(listBuildsCommand);
-        const buildIds = listBuildsResp.ids;
-
-        if (!buildIds || buildIds.length === 0) {
+        if (!listResp.ids || listResp.ids.length === 0) {
             throw new Error(`No builds found for project: ${projectName}`);
         }
 
-        const buildId = buildIds[0];
-        console.log(`Latest Build ID: ${buildId}`);
+        const buildId = listResp.ids[0];
+        console.log(`Identified latest Build ID: ${buildId}`);
 
-        // Get build details
-        const batchGetBuildsCommand = new BatchGetBuildsCommand({
-            ids: [buildId],
-        });
+        // 2) Get details about that specific build
+        const batchResp = await codebuildClient.send(
+            new BatchGetBuildsCommand({ ids: [buildId] })
+        );
+        console.log('BatchGetBuildsCommand response:', JSON.stringify(batchResp, null, 2));
 
-        const buildDetailsResp = await codebuildClient.send(batchGetBuildsCommand);
-        const build = buildDetailsResp.builds[0];
-
+        const build = batchResp.builds?.[0];
         if (!build) {
             throw new Error(`Build details not found for Build ID: ${buildId}`);
         }
 
         const buildStatus = build.buildStatus;
-        console.log(`Build Status: ${buildStatus}`);
+        console.log(`The build status for ID ${buildId} is: ${buildStatus}`);
 
+        // Check for in-progress status
         if (buildStatus === 'IN_PROGRESS') {
-            // Build is still in progress
-            console.log('Build is still in progress.');
+            console.log('Build is still in progress. Requesting more time...');
             return { IsComplete: false };
-        } else if (buildStatus === 'SUCCEEDED') {
-            // Build succeeded
-            console.log('Build succeeded.');
-            return { IsComplete: true };
-        } else if (['FAILED', 'FAULT', 'STOPPED', 'TIMED_OUT'].includes(buildStatus)) {
-            // Build failed; retrieve last 5 log lines
-            const logsInfo = build.logs;
-            if (logsInfo && logsInfo.groupName && logsInfo.streamName) {
-                console.log(`Retrieving logs from CloudWatch Logs Group: ${logsInfo.groupName}, Stream: ${logsInfo.streamName}`);
-
-                const getLogEventsCommand = new GetLogEventsCommand({
-                    logGroupName: logsInfo.groupName,
-                    logStreamName: logsInfo.streamName,
-                    startFromHead: false, // Start from the end to get latest logs
-                    limit: 5,
-                });
-
-                const logEventsResp = await cloudwatchlogsClient.send(getLogEventsCommand);
-                const logEvents = logEventsResp.events;
-                const lastFiveMessages = logEvents.map((event) => event.message).reverse().join('\n');
-
-                const errorMessage = `Build failed with status: ${buildStatus}\nLast 5 build logs:\n${lastFiveMessages}`;
-                console.error(errorMessage);
-
-                // Throw an error to indicate failure to the CDK provider
-                throw new Error(errorMessage);
-            } else {
-                const errorMessage = `Build failed with status: ${buildStatus}, but logs are not available.`;
-                console.error(errorMessage);
-                throw new Error(errorMessage);
-            }
-        } else {
-            const errorMessage = `Unknown build status: ${buildStatus}`;
-            console.error(errorMessage);
-            throw new Error(errorMessage);
         }
+
+        // If build succeeded, retrieve the final artifact with the digest
+        if (buildStatus === 'SUCCEEDED') {
+            return {
+                IsComplete: true,
+                Data: {
+                    ImageTag: process.env.IMAGE_TAG,
+                },
+            };
+        }
+
+        // If the build is in a failed status, retrieve CloudWatch logs
+        if (['FAILED', 'FAULT', 'STOPPED', 'TIMED_OUT'].includes(buildStatus)) {
+            console.log(`Build ended with status: ${buildStatus}. Attempting to retrieve last log lines...`);
+            const logsInfo = build.logs;
+            console.log('Logs info:', JSON.stringify(logsInfo, null, 2));
+
+            if (logsInfo?.groupName && logsInfo?.streamName) {
+                console.log(`Retrieving up to 5 log events from CloudWatch Logs in group ${logsInfo.groupName} stream ${logsInfo.streamName}`);
+                const logResp = await logsClient.send(
+                    new GetLogEventsCommand({
+                        logGroupName: logsInfo.groupName,
+                        logStreamName: logsInfo.streamName,
+                        startFromHead: false,
+                        limit: 5,
+                    })
+                );
+                console.log('GetLogEventsCommand response:', JSON.stringify(logResp, null, 2));
+
+                const logEvents = logResp.events || [];
+                const lastFive = logEvents.map(e => e.message).reverse().join('\n');
+                console.error('Last 5 build log lines:\n', lastFive);
+
+                throw new Error(`Build failed with status ${buildStatus}. Last logs:\n${lastFive}`);
+            } else {
+                throw new Error(`Build failed with status: ${buildStatus}, but no logs found.`);
+            }
+        }
+
+        // If we reach here, it's an unexpected status
+        console.log(`Encountered unknown build status: ${buildStatus}`);
+        throw new Error(`Unknown build status: ${buildStatus}`);
+
     } catch (error) {
-        console.error('Error in isCompleteHandler:', error);
-        // Rethrow the error to inform the CDK provider of the failure
+        console.error('--- Caught an error in isComplete handler ---');
+        console.error('Error details:', error);
+        // re-throw for CloudFormation to see the error
         throw error;
     }
 };
