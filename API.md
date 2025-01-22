@@ -94,7 +94,7 @@ Any object.
 | --- | --- | --- |
 | <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilder.property.node">node</a></code> | <code>constructs.Node</code> | The tree node. |
 | <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilder.property.containerImage">containerImage</a></code> | <code>aws-cdk-lib.aws_ecs.ContainerImage</code> | An ECS-compatible container image referencing the tag of the built Docker image. |
-| <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilder.property.dockerImageCode">dockerImageCode</a></code> | <code>aws-cdk-lib.aws_lambda.DockerImageCode</code> | A Lambda-compatible DockerImageCode referencing the the tag of the built Docker image. |
+| <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilder.property.dockerImageCode">dockerImageCode</a></code> | <code>aws-cdk-lib.aws_lambda.DockerImageCode</code> | A Lambda-compatible DockerImageCode referencing the tag of the built Docker image. |
 
 ---
 
@@ -130,7 +130,7 @@ public readonly dockerImageCode: DockerImageCode;
 
 - *Type:* aws-cdk-lib.aws_lambda.DockerImageCode
 
-A Lambda-compatible DockerImageCode referencing the the tag of the built Docker image.
+A Lambda-compatible DockerImageCode referencing the tag of the built Docker image.
 
 ---
 
@@ -157,6 +157,7 @@ const tokenInjectableDockerBuilderProps: TokenInjectableDockerBuilderProps = { .
 | <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilderProps.property.buildArgs">buildArgs</a></code> | <code>{[ key: string ]: string}</code> | Build arguments to pass to the Docker build process. |
 | <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilderProps.property.dockerLoginSecretArn">dockerLoginSecretArn</a></code> | <code>string</code> | The ARN of the AWS Secrets Manager secret containing Docker login credentials. |
 | <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilderProps.property.installCommands">installCommands</a></code> | <code>string[]</code> | Custom commands to run during the install phase of CodeBuild. |
+| <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilderProps.property.kmsEncryption">kmsEncryption</a></code> | <code>boolean</code> | Whether to enable KMS encryption for the ECR repository. |
 | <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilderProps.property.preBuildCommands">preBuildCommands</a></code> | <code>string[]</code> | Custom commands to run during the pre_build phase of CodeBuild. |
 | <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilderProps.property.securityGroups">securityGroups</a></code> | <code>aws-cdk-lib.aws_ec2.ISecurityGroup[]</code> | The security groups to attach to the CodeBuild project. |
 | <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilderProps.property.subnetSelection">subnetSelection</a></code> | <code>aws-cdk-lib.aws_ec2.SubnetSelection</code> | The subnet selection to specify which subnets to use within the VPC. |
@@ -250,6 +251,22 @@ installCommands: [
   'apt-get install -y curl dnsutils',
 ],
 ```
+
+---
+
+##### `kmsEncryption`<sup>Optional</sup> <a name="kmsEncryption" id="token-injectable-docker-builder.TokenInjectableDockerBuilderProps.property.kmsEncryption"></a>
+
+```typescript
+public readonly kmsEncryption: boolean;
+```
+
+- *Type:* boolean
+- *Default:* false
+
+Whether to enable KMS encryption for the ECR repository.
+
+If `true`, a KMS key will be created for encrypting ECR images.
+If `false`, the repository will use AES-256 encryption.
 
 ---
 

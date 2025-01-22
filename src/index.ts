@@ -103,6 +103,15 @@ export interface TokenInjectableDockerBuilderProps {
    * @default - No additional pre-build commands.
    */
   readonly preBuildCommands?: string[];
+
+  /**
+   * Whether to enable KMS encryption for the ECR repository.
+   * If `true`, a KMS key will be created for encrypting ECR images.
+   * If `false`, the repository will use AES-256 encryption.
+   *
+   * @default - false
+   */
+  readonly kmsEncryption?: boolean;
 }
 
 /**
@@ -123,7 +132,7 @@ export class TokenInjectableDockerBuilder extends Construct {
   public readonly containerImage: ContainerImage;
 
   /**
-   * A Lambda-compatible DockerImageCode referencing the the tag
+   * A Lambda-compatible DockerImageCode referencing the tag
    * of the built Docker image.
    */
   public readonly dockerImageCode: DockerImageCode;
@@ -147,17 +156,21 @@ export class TokenInjectableDockerBuilder extends Construct {
       subnetSelection,
       installCommands,
       preBuildCommands,
+      kmsEncryption = false,
     } = props;
 
     // Generate an ephemeral tag for CodeBuild
     const imageTag = crypto.randomUUID();
 
-    // Define a KMS key for ECR encryption
-    const encryptionKey = new Key(this, 'EcrEncryptionKey', {
-      enableKeyRotation: true,
-    });
+    // Optionally define a KMS key for ECR encryption if requested
+    let encryptionKey: Key | undefined;
+    if (kmsEncryption) {
+      encryptionKey = new Key(this, 'EcrEncryptionKey', {
+        enableKeyRotation: true,
+      });
+    }
 
-    // Create an ECR repository with encryption, lifecycle rules, and image scanning
+    // Create an ECR repository (optionally with KMS encryption)
     this.ecrRepository = new Repository(this, 'ECRRepository', {
       lifecycleRules: [
         {
@@ -167,8 +180,8 @@ export class TokenInjectableDockerBuilder extends Construct {
           maxImageAge: Duration.days(1),
         },
       ],
-      encryption: RepositoryEncryption.KMS,
-      encryptionKey,
+      encryption: kmsEncryption ? RepositoryEncryption.KMS : RepositoryEncryption.AES_256,
+      encryptionKey: kmsEncryption ? encryptionKey : undefined,
       imageScanOnPush: true,
     });
 
@@ -237,7 +250,6 @@ export class TokenInjectableDockerBuilder extends Construct {
       },
     };
 
-
     // Create the CodeBuild project
     const codeBuildProject = new Project(this, 'CodeBuildProject', {
       source: Source.s3({
@@ -259,33 +271,43 @@ export class TokenInjectableDockerBuilder extends Construct {
 
     // Grant CodeBuild the ability to interact with ECR
     this.ecrRepository.grantPullPush(codeBuildProject);
-    codeBuildProject.role?.addToPrincipalPolicy(new PolicyStatement({
-      actions: [
-        'ecr:GetAuthorizationToken',
-        'ecr:GetDownloadUrlForLayer',
-        'ecr:BatchCheckLayerAvailability',
-      ],
-      resources: [this.ecrRepository.repositoryArn],
-    }));
+    codeBuildProject.addToRolePolicy(
+      new PolicyStatement({
+        actions: [
+          'ecr:GetAuthorizationToken',
+          'ecr:GetDownloadUrlForLayer',
+          'ecr:BatchCheckLayerAvailability',
+        ],
+        resources: ['*'],
+      }),
+    );
     if (dockerLoginSecretArn) {
-      codeBuildProject.role?.addToPrincipalPolicy(new PolicyStatement({
-        actions: ['secretsmanager:GetSecretValue'],
-        resources: [dockerLoginSecretArn],
-      }));
+      codeBuildProject.addToRolePolicy(
+        new PolicyStatement({
+          actions: ['secretsmanager:GetSecretValue'],
+          resources: [dockerLoginSecretArn],
+        }),
+      );
     }
-    encryptionKey.grantEncryptDecrypt(codeBuildProject.role!);
 
-    // Define the Lambda functions for custom resource event and completion handling
+    // Conditionally grant KMS encrypt/decrypt if a key is used
+    if (encryptionKey) {
+      encryptionKey.grantEncryptDecrypt(codeBuildProject.role!);
+    }
+
+    // Define Lambda functions for custom resource event and completion handling
     const onEventHandlerFunction = new Function(this, 'OnEventHandlerFunction', {
       runtime: Runtime.NODEJS_18_X,
       code: Code.fromAsset(path.resolve(__dirname, '../onEvent')),
       handler: 'onEvent.handler',
       timeout: Duration.minutes(15),
     });
-    onEventHandlerFunction.addToRolePolicy(new PolicyStatement({
-      actions: ['codebuild:StartBuild'],
-      resources: [codeBuildProject.projectArn],
-    }));
+    onEventHandlerFunction.addToRolePolicy(
+      new PolicyStatement({
+        actions: ['codebuild:StartBuild'],
+        resources: [codeBuildProject.projectArn],
+      }),
+    );
 
     const isCompleteHandlerFunction = new Function(this, 'IsCompleteHandlerFunction', {
       runtime: Runtime.NODEJS_18_X,
@@ -296,21 +318,25 @@ export class TokenInjectableDockerBuilder extends Construct {
       handler: 'isComplete.handler',
       timeout: Duration.minutes(15),
     });
-
-    isCompleteHandlerFunction.addToRolePolicy(new PolicyStatement({
-      actions: [
-        'codebuild:BatchGetBuilds',
-        'codebuild:ListBuildsForProject',
-        'logs:GetLogEvents',
-        'logs:DescribeLogStreams',
-        'logs:DescribeLogGroups',
-      ],
-      resources: ['*'],
-    }));
+    isCompleteHandlerFunction.addToRolePolicy(
+      new PolicyStatement({
+        actions: [
+          'codebuild:BatchGetBuilds',
+          'codebuild:ListBuildsForProject',
+          'logs:GetLogEvents',
+          'logs:DescribeLogStreams',
+          'logs:DescribeLogGroups',
+        ],
+        resources: ['*'],
+      }),
+    );
 
     artifactBucket.grantReadWrite(isCompleteHandlerFunction);
-    encryptionKey.grantEncryptDecrypt(onEventHandlerFunction);
-    encryptionKey.grantEncryptDecrypt(isCompleteHandlerFunction);
+    // Conditionally allow encryption if a key is used
+    if (encryptionKey) {
+      encryptionKey.grantEncryptDecrypt(onEventHandlerFunction);
+      encryptionKey.grantEncryptDecrypt(isCompleteHandlerFunction);
+    }
     this.ecrRepository.grantPullPush(onEventHandlerFunction);
     this.ecrRepository.grantPullPush(isCompleteHandlerFunction);
 
@@ -327,13 +353,12 @@ export class TokenInjectableDockerBuilder extends Construct {
       properties: {
         ProjectName: codeBuildProject.projectName,
         ImageTag: imageTag,
-        Trigger: crypto.randomUUID(),
+        Trigger: crypto.randomUUID(), // force an update each time
       },
     });
     buildTriggerResource.node.addDependency(codeBuildProject);
 
     // Retrieve the final Docker image tag from Data.ImageTag
-    // This creates a dependency on the Custom Resource...
     const imageTagRef = buildTriggerResource.getAttString('ImageTag');
     this.containerImage = ContainerImage.fromEcrRepository(this.ecrRepository, imageTagRef);
     this.dockerImageCode = DockerImageCode.fromEcr(this.ecrRepository, {

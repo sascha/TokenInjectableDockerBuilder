@@ -19,9 +19,6 @@ describe('TokenInjectableDockerBuilder', () => {
     // Verify that an ECR repository is created
     template.resourceCountIs('AWS::ECR::Repository', 1);
 
-    // Verify that a KMS Key is created for ECR encryption
-    template.resourceCountIs('AWS::KMS::Key', 1);
-
     // Verify that a CodeBuild project is created with expected properties
     template.hasResourceProperties('AWS::CodeBuild::Project', {
       Environment: {
