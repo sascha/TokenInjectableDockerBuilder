@@ -112,6 +112,14 @@ export interface TokenInjectableDockerBuilderProps {
    * @default - false
    */
   readonly kmsEncryption?: boolean;
+
+  /**
+   * The query interval for checking if the CodeBuild project has completed.
+   * This determines how frequently the custom resource polls for build completion.
+   *
+   * @default - Duration.seconds(30)
+   */
+  readonly completenessQueryInterval?: Duration;
 }
 
 /**
@@ -157,6 +165,7 @@ export class TokenInjectableDockerBuilder extends Construct {
       installCommands,
       preBuildCommands,
       kmsEncryption = false,
+      completenessQueryInterval,
     } = props;
 
     // Generate an ephemeral tag for CodeBuild
@@ -344,7 +353,7 @@ export class TokenInjectableDockerBuilder extends Construct {
     const provider = new Provider(this, 'CustomResourceProvider', {
       onEventHandler: onEventHandlerFunction,
       isCompleteHandler: isCompleteHandlerFunction,
-      queryInterval: Duration.seconds(30),
+      queryInterval: completenessQueryInterval ?? Duration.seconds(30),
     });
 
     // Custom Resource that triggers the CodeBuild and waits for completion

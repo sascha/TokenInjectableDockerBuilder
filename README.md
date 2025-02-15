@@ -21,6 +21,7 @@ For example, a Next.js frontend Docker image may require an API Gateway URL as a
 - **Docker Login**: Supports Docker login using credentials stored in AWS Secrets Manager.
 - **ECR Repository Management**: Creates an ECR repository with lifecycle rules and encryption.
 - **Integration with ECS and Lambda**: Provides outputs for use in AWS ECS and AWS Lambda.
+- **Custom Build Query Interval**: Configure how frequently the custom resource polls for build completion using the `completenessQueryInterval` property (defaults to 30 seconds).
 
 ---
 
@@ -56,16 +57,18 @@ pip install token-injectable-docker-builder
 
 #### Properties in `TokenInjectableDockerBuilderProps`
 
-| Property                 | Type                        | Required | Description                                                                                                                                                                                                                                                                                     |
-|--------------------------|-----------------------------|----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `path`                   | `string`                    | Yes      | The file path to the Dockerfile or source code directory.                                                                                                                                                                                                                                       |
-| `buildArgs`              | `{ [key: string]: string }` | No       | Build arguments to pass to the Docker build process. These are transformed into `--build-arg` flags. To use in Dockerfile, leverage the `ARG` keyword. For more details, please see the [official Docker docs](https://docs.docker.com/build/building/variables/).                              |
-| `dockerLoginSecretArn`   | `string`                    | No       | ARN of an AWS Secrets Manager secret for Docker credentials. Skips login if not provided.                                                                                                                                                                                                        |
-| `vpc`                    | `IVpc`                      | No       | The VPC in which the CodeBuild project will be deployed. If provided, the CodeBuild project will be launched within the specified VPC.                                                                                                                                                           |
-| `securityGroups`         | `ISecurityGroup[]`          | No       | The security groups to attach to the CodeBuild project. These should define the network access rules for the CodeBuild project.                                                                                                                                                                  |
-| `subnetSelection`        | `SubnetSelection`           | No       | The subnet selection to specify which subnets to use within the VPC. Allows the user to select private, public, or isolated subnets.                                                                                                                                                             |
-| `installCommands`        | `string[]`                  | No       | Custom commands to run during the `install` phase of the CodeBuild build process. Will be executed before the Docker image is built. Useful for installing necessary dependencies for running pre-build scripts.                                                                                 |
-| `preBuildCommands`       | `string[]`                  | No       | Custom commands to run during the `pre_build` phase of the CodeBuild build process. Will be executed before the Docker image is built. Useful for running pre-build scripts, such as fetching configs.                                                                                           |
+| Property                   | Type                        | Required | Description                                                                                                                                                                                                                                                                                     |
+|----------------------------|-----------------------------|----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `path`                     | `string`                    | Yes      | The file path to the Dockerfile or source code directory.                                                                                                                                                                                                                                       |
+| `buildArgs`                | `{ [key: string]: string }` | No       | Build arguments to pass to the Docker build process. These are transformed into `--build-arg` flags. To use in Dockerfile, leverage the `ARG` keyword. For more details, please see the [official Docker docs](https://docs.docker.com/build/building/variables/).                             |
+| `dockerLoginSecretArn`     | `string`                    | No       | ARN of an AWS Secrets Manager secret for Docker credentials. Skips login if not provided.                                                                                                                                                                                                        |
+| `vpc`                      | `IVpc`                      | No       | The VPC in which the CodeBuild project will be deployed. If provided, the CodeBuild project will be launched within the specified VPC.                                                                                                                                                           |
+| `securityGroups`           | `ISecurityGroup[]`          | No       | The security groups to attach to the CodeBuild project. These should define the network access rules for the CodeBuild project.                                                                                                                                                                  |
+| `subnetSelection`          | `SubnetSelection`           | No       | The subnet selection to specify which subnets to use within the VPC. Allows the user to select private, public, or isolated subnets.                                                                                                                                                             |
+| `installCommands`          | `string[]`                  | No       | Custom commands to run during the `install` phase of the CodeBuild build process. Will be executed before the Docker image is built. Useful for installing necessary dependencies for running pre-build scripts.                                                                                 |
+| `preBuildCommands`         | `string[]`                  | No       | Custom commands to run during the `pre_build` phase of the CodeBuild build process. Will be executed before the Docker image is built. Useful for running pre-build scripts, such as fetching configs.                                                                                           |
+| `kmsEncryption`            | `boolean`                   | No       | Whether to enable KMS encryption for the ECR repository. If `true`, a KMS key will be created for encrypting ECR images; otherwise, AES-256 encryption is used. Defaults to `false`.                                                                                                          |
+| `completenessQueryInterval`| `Duration`                  | No       | The query interval for checking if the CodeBuild project has completed. This determines how frequently the custom resource polls for build completion. Defaults to `Duration.seconds(30)`.                                                                                                   |
 
 ---
 
@@ -99,6 +102,8 @@ export class SimpleStack extends cdk.Stack {
       buildArgs: {
         API_URL: api.url, // Pass the API Gateway URL as a build argument
       },
+      // Optionally override the default completeness query interval:
+      // completenessQueryInterval: cdk.Duration.seconds(45),
     });
 
     // Use in ECS
@@ -129,6 +134,7 @@ from aws_cdk import (
     aws_ecs as ecs,
     aws_ec2 as ec2,
     aws_apigateway as apigateway,
+    Duration,
     core as cdk,
 )
 from token_injectable_docker_builder import TokenInjectableDockerBuilder
@@ -149,6 +155,8 @@ class SimpleStack(cdk.Stack):
             build_args={
                 "API_URL": api.url,  # Pass the API Gateway URL as a build argument
             },
+            # Optionally override the default completeness query interval:
+            # completeness_query_interval=Duration.seconds(45)
         )
 
         # Use in ECS
@@ -223,10 +231,9 @@ export class AdvancedStack extends cdk.Stack {
         // Replace with your actual command to fetch configs
         'curl -o config.json https://internal-api.example.com/config',
       ],
+      // Optionally override the default completeness query interval:
+      // completenessQueryInterval: cdk.Duration.seconds(45),
     });
-
-    // Ensure the CodeBuild project has access to the internal API endpoint
-    // You may need to adjust your VPC and security group settings accordingly
 
     // Use in ECS
     const cluster = new ecs.Cluster(this, 'EcsCluster', { vpc });
@@ -254,6 +261,7 @@ from aws_cdk import (
     aws_ecs as ecs,
     aws_ec2 as ec2,
     aws_apigateway as apigateway,
+    Duration,
     core as cdk,
 )
 from token_injectable_docker_builder import TokenInjectableDockerBuilder
@@ -292,10 +300,9 @@ class AdvancedStack(cdk.Stack):
                 # Replace with your actual command to fetch configs
                 'curl -o config.json https://internal-api.example.com/config',
             ],
+            # Optionally override the default completeness query interval:
+            # completeness_query_interval=Duration.seconds(45)
         )
-
-        # Ensure the CodeBuild project has access to the internal API endpoint
-        # You may need to adjust your VPC and security group settings accordingly
 
         # Use in ECS
         cluster = ecs.Cluster(self, "EcsCluster", vpc=vpc)
@@ -335,7 +342,7 @@ In this advanced example:
    - Pushes the image to an ECR repository.
 3. **Custom Resource**:
    - Triggers the build process using a Lambda function (`onEvent`).
-   - Monitors the build status using another Lambda function (`isComplete`).
+   - Monitors the build status using another Lambda function (`isComplete`) which polls at the interval specified by `completenessQueryInterval` (defaulting to 30 seconds if not provided).
 4. **Outputs**:
    - `.containerImage`: Returns the Docker image for ECS.
    - `.dockerImageCode`: Returns the Docker image code for Lambda.
@@ -365,6 +372,7 @@ The construct automatically grants permissions for:
 - **VPC Configuration**: If your build process requires access to resources within a VPC, you can specify the VPC, security groups, and subnet selection.
 - **Docker Login**: If you need to log in to a private Docker registry before building the image, provide the ARN of a secret in AWS Secrets Manager containing the Docker credentials.
 - **ECR Repository**: Automatically creates an ECR repository with lifecycle rules to manage image retention, encryption with a KMS key, and image scanning on push.
+- **Build Query Interval**: The polling frequency for checking build completion can be customized via the `completenessQueryInterval` property.
 
 ---
 
@@ -403,5 +411,3 @@ This project is licensed under the terms of the MIT license.
 ---
 
 Feel free to reach out if you have any questions or need further assistance!
-
----

@@ -155,6 +155,7 @@ const tokenInjectableDockerBuilderProps: TokenInjectableDockerBuilderProps = { .
 | --- | --- | --- |
 | <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilderProps.property.path">path</a></code> | <code>string</code> | The path to the directory containing the Dockerfile or source code. |
 | <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilderProps.property.buildArgs">buildArgs</a></code> | <code>{[ key: string ]: string}</code> | Build arguments to pass to the Docker build process. |
+| <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilderProps.property.completenessQueryInterval">completenessQueryInterval</a></code> | <code>aws-cdk-lib.Duration</code> | The query interval for checking if the CodeBuild project has completed. |
 | <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilderProps.property.dockerLoginSecretArn">dockerLoginSecretArn</a></code> | <code>string</code> | The ARN of the AWS Secrets Manager secret containing Docker login credentials. |
 | <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilderProps.property.installCommands">installCommands</a></code> | <code>string[]</code> | Custom commands to run during the install phase of CodeBuild. |
 | <code><a href="#token-injectable-docker-builder.TokenInjectableDockerBuilderProps.property.kmsEncryption">kmsEncryption</a></code> | <code>boolean</code> | Whether to enable KMS encryption for the ECR repository. |
@@ -200,6 +201,21 @@ These are transformed into `--build-arg KEY=VALUE` flags.
 }
 ```
 
+
+##### `completenessQueryInterval`<sup>Optional</sup> <a name="completenessQueryInterval" id="token-injectable-docker-builder.TokenInjectableDockerBuilderProps.property.completenessQueryInterval"></a>
+
+```typescript
+public readonly completenessQueryInterval: Duration;
+```
+
+- *Type:* aws-cdk-lib.Duration
+- *Default:* Duration.seconds(30)
+
+The query interval for checking if the CodeBuild project has completed.
+
+This determines how frequently the custom resource polls for build completion.
+
+---
 
 ##### `dockerLoginSecretArn`<sup>Optional</sup> <a name="dockerLoginSecretArn" id="token-injectable-docker-builder.TokenInjectableDockerBuilderProps.property.dockerLoginSecretArn"></a>
 
