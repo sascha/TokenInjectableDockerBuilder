@@ -1,4 +1,5 @@
 const { CodeBuildClient, StartBuildCommand } = require('@aws-sdk/client-codebuild');
+const crypto = require('crypto');
 
 exports.handler = async (event, context) => {
     console.log('Event:', JSON.stringify(event, null, 2));
@@ -12,6 +13,7 @@ exports.handler = async (event, context) => {
     if (event.RequestType === 'Create' || event.RequestType === 'Update') {
         const params = {
             projectName: event.ResourceProperties.ProjectName,
+            idempotencyToken: crypto.randomUUID()
         };
 
         try {
