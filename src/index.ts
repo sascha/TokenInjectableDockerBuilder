@@ -362,7 +362,7 @@ export class TokenInjectableDockerBuilder extends Construct {
       properties: {
         ProjectName: codeBuildProject.projectName,
         ImageTag: imageTag,
-        Trigger: crypto.randomUUID(), // force an update each time
+        Trigger: sourceAsset.assetHash,
       },
     });
     buildTriggerResource.node.addDependency(codeBuildProject);
