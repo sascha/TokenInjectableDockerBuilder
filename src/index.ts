@@ -1,5 +1,7 @@
 import * as crypto from 'crypto';
+import * as fs from 'fs';
 import * as path from 'path';
+
 import { CustomResource, Duration, RemovalPolicy } from 'aws-cdk-lib';
 import { Project, Source, LinuxBuildImage, BuildSpec } from 'aws-cdk-lib/aws-codebuild';
 import { IVpc, ISecurityGroup, SubnetSelection } from 'aws-cdk-lib/aws-ec2';
@@ -120,6 +122,14 @@ export interface TokenInjectableDockerBuilderProps {
    * @default - Duration.seconds(30)
    */
   readonly completenessQueryInterval?: Duration;
+
+  /**
+   * A list of file paths in the Docker directory to exclude from build.
+   * Will use paths in .dockerignore file if present.
+   *
+   * @default - No file path exclusions
+   */
+  readonly exclude?: string[];
 }
 
 /**
@@ -166,6 +176,7 @@ export class TokenInjectableDockerBuilder extends Construct {
       preBuildCommands,
       kmsEncryption = false,
       completenessQueryInterval,
+      exclude,
     } = props;
 
     // Generate an ephemeral tag for CodeBuild
@@ -194,9 +205,22 @@ export class TokenInjectableDockerBuilder extends Construct {
       imageScanOnPush: true,
     });
 
+    let effectiveExclude = exclude;
+    if (!effectiveExclude) {
+      const dockerignorePath = path.join(sourcePath, '.dockerignore');
+      if (fs.existsSync(dockerignorePath)) {
+        const fileContent = fs.readFileSync(dockerignorePath, 'utf8');
+        effectiveExclude = fileContent
+          .split('\n')
+          .map((line: string) => line.trim())
+          .filter((line: string) => line.length > 0 && !line.startsWith('#'));
+      }
+    }
+
     // Wrap the source folder as an S3 asset for CodeBuild to use
     const sourceAsset = new Asset(this, 'SourceAsset', {
       path: sourcePath,
+      exclude: effectiveExclude,
     });
 
     // Create an S3 bucket to store the CodeBuild artifacts
