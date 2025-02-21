@@ -1,6 +1,6 @@
 import * as crypto from 'crypto';
-import * as path from 'path';
 import * as fs from 'fs';
+import * as path from 'path';
 
 import { CustomResource, Duration, RemovalPolicy } from 'aws-cdk-lib';
 import { Project, Source, LinuxBuildImage, BuildSpec } from 'aws-cdk-lib/aws-codebuild';
@@ -176,7 +176,7 @@ export class TokenInjectableDockerBuilder extends Construct {
       preBuildCommands,
       kmsEncryption = false,
       completenessQueryInterval,
-      exclude
+      exclude,
     } = props;
 
     // Generate an ephemeral tag for CodeBuild
@@ -220,7 +220,7 @@ export class TokenInjectableDockerBuilder extends Construct {
     // Wrap the source folder as an S3 asset for CodeBuild to use
     const sourceAsset = new Asset(this, 'SourceAsset', {
       path: sourcePath,
-      exclude: effectiveExclude
+      exclude: effectiveExclude,
     });
 
     // Create an S3 bucket to store the CodeBuild artifacts
