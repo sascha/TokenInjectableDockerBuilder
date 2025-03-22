@@ -16,6 +16,36 @@ import { Provider } from 'aws-cdk-lib/custom-resources';
 import { Construct } from 'constructs';
 
 /**
+ * platform supported by docker
+ */
+export class Platform {
+  /**
+   * Build for linux/amd64
+   */
+  public static readonly LINUX_AMD64 = new Platform('linux/amd64');
+
+  /**
+   * Build for linux/arm64
+   */
+  public static readonly LINUX_ARM64 = new Platform('linux/arm64');
+
+  /**
+   * Used to specify a custom platform
+   * Use this if the platform name is not yet supported by the CDK.
+   *
+   * @param platform The platform to use for docker build
+   */
+  public static custom(platform: string) {
+    return new Platform(platform);
+  }
+
+  /**
+   * @param platform The platform to use for docker build
+   */
+  private constructor(public readonly platform: string) { }
+}
+
+/**
  * Properties for the `TokenInjectableDockerBuilder` construct.
  */
 export interface TokenInjectableDockerBuilderProps {
@@ -130,6 +160,27 @@ export interface TokenInjectableDockerBuilderProps {
    * @default - No file path exclusions
    */
   readonly exclude?: string[];
+
+  /**
+   * The platform to use for the Docker build.
+   *
+   * @default - No platform specified
+   */
+  readonly platform?: Platform;
+
+  /**
+   * The ECR repository to use for the Docker build.
+   *
+   * @default - No ECR repository specified, a new one will be created
+   */
+  readonly ecrRepository?: Repository;
+
+  /**
+   * The image tag to use for the Docker build.
+   *
+   * @default - No image tag specified, a random UUID will be used
+   */
+  readonly imageTag?: string;
 }
 
 /**
@@ -177,10 +228,12 @@ export class TokenInjectableDockerBuilder extends Construct {
       kmsEncryption = false,
       completenessQueryInterval,
       exclude,
+      platform,
+      ecrRepository,
     } = props;
 
     // Generate an ephemeral tag for CodeBuild
-    const imageTag = crypto.randomUUID();
+    const imageTag = props.imageTag ?? crypto.randomUUID();
 
     // Optionally define a KMS key for ECR encryption if requested
     let encryptionKey: Key | undefined;
@@ -191,7 +244,7 @@ export class TokenInjectableDockerBuilder extends Construct {
     }
 
     // Create an ECR repository (optionally with KMS encryption)
-    this.ecrRepository = new Repository(this, 'ECRRepository', {
+    this.ecrRepository = ecrRepository ?? new Repository(this, 'ECRRepository', {
       lifecycleRules: [
         {
           rulePriority: 1,
@@ -237,6 +290,8 @@ export class TokenInjectableDockerBuilder extends Construct {
         .join(' ')
       : '';
 
+    const platformString = platform ? `--platform ${platform.platform}` : '';
+
     // Optional DockerHub login, if a secret ARN is provided
     const dockerLoginCommands = dockerLoginSecretArn
       ? [
@@ -271,7 +326,7 @@ export class TokenInjectableDockerBuilder extends Construct {
         build: {
           commands: [
             `echo "Building Docker image with tag ${imageTag}..."`,
-            `docker build ${buildArgsString} -t $ECR_REPO_URI:${imageTag} $CODEBUILD_SRC_DIR`,
+            `docker build ${platformString} ${buildArgsString} -t $ECR_REPO_URI:${imageTag} $CODEBUILD_SRC_DIR`,
           ],
         },
         post_build: {
